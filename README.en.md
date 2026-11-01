@@ -10,6 +10,22 @@ The plan was to get it back. That grew into a small editor with item search, map
 
 The current release is **v0.2.0 preview**, for Windows x64 and Steam build **26266538**. Other game builds aren't supported yet; the editor blocks writes to them.
 
+## A quick look
+
+These are captures of the actual app using a generated demo inventory. The file is called `PBZ-Demo.sav`; no player progress appears here.
+
+**1. Find an item.** Browse categories on the left, search by name or filter by map. Your inventory sits on the right.
+
+![Item library and inventory overview using a generated DEMO save](docs/screenshots/01-browse.en-US.png)
+
+**2. Add it and adjust its values.** Here, Arrowward is found through the Village of Lu filter, added to the inventory and upgraded to +1. The top bar shows one unsaved change.
+
+![Arrowward added through the map filter and upgraded, with an unsaved change](docs/screenshots/02-edit.en-US.png)
+
+**3. Save when you're ready.** Material quantities accept a target value directly. After clicking **Save changes**, the bottom message confirms the save and automatic backup.
+
+![Demo material quantity set to 20, with saving and automatic backup confirmed](docs/screenshots/03-saved.en-US.png)
+
 ## Give it a try
 
 1. Download `PBZ-Editor-0.2.0-windows-x64.zip`, **extract the whole archive**, and exit the game.
@@ -45,6 +61,6 @@ Prefer to keep everything beside the app? Create an empty `portable.flag` next t
 
 Missing item, unexpected value, or a step that feels awkward? [Open an issue](https://github.com/qry6868/PBZ-Editor/issues/new/choose). Include the editor version, game build, steps and error text so it's easier to reproduce. **Please leave saves and complete private logs out of public reports.**
 
-If you'd like to change the code, start with the [build guide](docs/building.en.md). The editor leaves game installation files alone. Neither the repository nor the runtime includes player saves, extracted game images or full game text.
+If you'd like to change the code, start with the [build guide](docs/building.en.md). The editor leaves game installation files alone. Apart from the UI screenshots in the docs, no extracted game images or full game text are distributed in the repository or runtime. Player saves aren't included either.
 
 This is a community project, unaffiliated with the game developer. Project code is [MIT licensed](LICENSE); bundled components are listed in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
