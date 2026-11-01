@@ -2,39 +2,49 @@
 
 [简体中文](README.md) | English
 
-An offline Windows save editor for **Phantom Blade Zero**. Find items by name or map, browse game icons, edit your backpack, and keep automatic backups before saving.
+This started with one missed item: **Arrowward**.
 
-**[Download for Windows](https://github.com/qry6868/PBZ-Editor/releases/tag/v0.2.0)** · [Release notes](docs/releases/0.2.0.en.md) · [Validation scope](docs/validation.en.md)
+The plan was to get it back. That grew into a small editor with item search, map filters and icons from the game. Find something, add it to your inventory, adjust its quantity or upgrade level, then save. You can recover a missed piece of gear or try another weapon without leaving the window.
 
-## Get started
+**[Download for Windows](https://github.com/qry6868/PBZ-Editor/releases/tag/v0.2.0)** · [What's new](docs/releases/0.2.0.en.md)
 
-1. Download `PBZ-Editor-0.2.0-windows-x64.zip` and extract the entire archive into a folder.
-2. Exit the game, then run `PBZ-Editor.exe`. No Python installation or manual DLL setup is needed.
-3. The editor detects the game and save. Choose the game root if detection fails, or select your save when multiple accounts are found.
-4. Search or filter by category and map, choose **Add to backpack**, adjust values on the right, then click **Save**.
+The current release is **v0.2.0 preview**, for Windows x64 and Steam build **26266538**. Other game builds aren't supported yet; the editor blocks writes to them.
 
-Switch between **简体中文 / English** at the top without losing pending edits. The first launch follows your system language; later launches remember your choice. English item names, descriptions and map labels come from your installed game. Missing translations retain their original names or internal IDs.
+## Give it a try
 
-The first launch reads the installed game to prepare and cache item metadata and icons. The download includes no player saves, game images or full game text. Game installation files are not modified. The GitHub `Source code` downloads are for developers; players should choose `windows-x64.zip`.
+1. Download `PBZ-Editor-0.2.0-windows-x64.zip`, **extract the whole archive**, and exit the game.
+2. Run `PBZ-Editor.exe`. It usually finds the game and save for you. If it doesn't, choose them manually; if several accounts appear, pick your own progress.
+3. Search the item library by name, or browse by category and map. Select an item and click **Add to inventory**.
+4. Adjust its quantity or level on the right, then click **Save changes** in the top corner.
 
-## Saving and recovery
+No Python installation or manual DLL setup needed. The first launch takes a little time to prepare item data and icons from your installed game; later launches use the cache. Pick **`windows-x64.zip`** on the download page. The `Source code` archives are for people who want to work on the code.
 
-Item selection and value changes update an in-memory backpack preview. Only saving writes those edits. Undo, export to a new copy, and backup restore are available. Before saving, the editor checks whether the game is running or the file changed externally, creates a backup, validates the result, and replaces the file. Untouched slots retain their original ciphertext.
+Switch between **简体中文 / English** at the top. Pending edits stay with you, and the app remembers your language next time.
 
-Settings, caches and backups use `%LOCALAPPDATA%\PBZ-Editor` by default. Extract a new version to upgrade. For portable mode, create an empty `portable.flag` beside the EXE; data uses the adjacent `.local` folder, which must be kept during upgrades. Keep the complete application folder together, not just the EXE.
+## What you can edit
 
-## Compatibility
+Main weapons, phantom weapons, accessories, items and materials, medicines, and full outfits: **799 editable entries** in the supported build. Names, descriptions and icons come from your installed game, as do the map associations. Where English text is missing, the original name or internal ID stays visible.
 
-**v0.2.0 preview** targets Windows x64 and Steam build **26266538**. Writes are refused for unsupported builds. Other game builds and a clean Windows PC have not been validated.
+While you're choosing items and changing values, edits stay in the preview. **The save file changes only when you save.** Undo is available, and you can export to a separate copy if you'd like to try things out first. Each write gets an automatic backup; open **Backups** at the top to find it.
 
-The supported build produces 844 catalog entries, including 799 editable entries across main weapons, phantom weapons, accessories, items/materials, medicines and full outfits. The remaining 45 internal appearance components are browse-only. Map associations come from game resources; some do not establish the first or only acquisition location.
+A few things to keep in mind:
 
-Five sample categories passed a game load, manual save, exit and file readback. This does not verify every item's display, effects or quest state. The game may refill medicine uses; full outfits affect the account wardrobe. See [validation and limitations](docs/validation.en.md).
+- **Adding a quest item doesn't complete its quest.** The editor doesn't replay story events.
+- **Medicine uses still follow the game's rules.** Loading may refill them, so arbitrary counts aren't guaranteed to stay exactly as entered.
+- A map association isn't necessarily the only place to get an item. Full outfits unlock in the account wardrobe.
 
-## Development and feedback
+Five sample categories have passed a game load, manual save, exit and readback. Every item's appearance and effects haven't been checked individually. The [validation notes](docs/validation.en.md) explain what has been tested and what remains uncertain.
 
-Project code is MIT licensed. See [third-party notices](THIRD_PARTY_NOTICES.md) for bundled components. This community tool is not affiliated with the game developer.
+## Updates and backups
 
-[Build from source](docs/building.en.md) · [Report an issue](https://github.com/qry6868/PBZ-Editor/issues/new/choose)
+Settings, caches and backups live in `%LOCALAPPDATA%\PBZ-Editor` by default. To upgrade, extract the complete new version and run its EXE. Keep the application folder together; copying just the EXE won't work.
 
-Include the editor version, game build, steps and error text. Do not attach saves, account folders or complete private logs to public issues.
+Prefer to keep everything beside the app? Create an empty `portable.flag` next to the EXE. This enables portable mode, with data in the adjacent `.local` folder. Keep that folder when upgrading.
+
+## Help improve it
+
+Missing item, unexpected value, or a step that feels awkward? [Open an issue](https://github.com/qry6868/PBZ-Editor/issues/new/choose). Include the editor version, game build, steps and error text so it's easier to reproduce. **Please leave saves and complete private logs out of public reports.**
+
+If you'd like to change the code, start with the [build guide](docs/building.en.md). The editor leaves game installation files alone. Neither the repository nor the runtime includes player saves, extracted game images or full game text.
+
+This is a community project, unaffiliated with the game developer. Project code is [MIT licensed](LICENSE); bundled components are listed in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
