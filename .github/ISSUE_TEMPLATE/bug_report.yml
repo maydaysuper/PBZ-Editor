@@ -1,0 +1,29 @@
+name: 报告问题 / Report a bug
+description: 哪一步出了问题？告诉我们经过就好。 / Tell us what happened.
+body:
+  - type: markdown
+    attributes:
+      value: |
+        不用上传存档或完整私人日志；截图请先遮住账号、路径和进度信息。
+        Please leave saves and full private logs out of this public report. Hide personal details in screenshots.
+  - type: textarea
+    id: problem
+    attributes:
+      label: 做了什么，发生了什么？ / What happened?
+      placeholder: "例如：搜索某件物品，点添加后…… / For example: I searched for an item, clicked Add, then…"
+    validations:
+      required: true
+  - type: input
+    id: editor_version
+    attributes:
+      label: 编辑器版本 / Editor version
+      placeholder: "例如 / e.g. v0.3.0"
+  - type: input
+    id: game_build
+    attributes:
+      label: 游戏 build（不知道可留空） / Game build (optional)
+  - type: textarea
+    id: error
+    attributes:
+      label: 报错文字或截图（可选） / Error text or screenshot (optional)
+      description: 去掉账号路径等个人信息即可。 / Remove account paths and other personal details.

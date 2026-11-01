@@ -1,0 +1,13 @@
+name: 想法和建议 / Ideas and suggestions
+description: 想让工具帮你完成什么？ / What would you like to do?
+body:
+  - type: textarea
+    id: idea
+    attributes:
+      label: 你想完成什么，或哪一步用着别扭？ / What would you like to do or improve?
+    validations:
+      required: true
+  - type: textarea
+    id: current_workflow
+    attributes:
+      label: 现在是怎么做的？（可选） / How do you do it now? (optional)

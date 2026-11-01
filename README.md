@@ -2,11 +2,15 @@
 
 简体中文 | [English](README.en.md)
 
+[![Windows build](https://github.com/qry6868/PBZ-Editor/actions/workflows/build.yml/badge.svg)](https://github.com/qry6868/PBZ-Editor/actions/workflows/build.yml)
+
+Windows 离线存档编辑器 · 免费开源（MIT） · 中文 / English
+
 事情的起因是一件没拿到的「避箭护符」。
 
 原本只是想把它补回来，后来索性把物品搜索、地图筛选和游戏图标都做进去了：找到想要的东西，加进背包，改好数量或等级，再保存。补一件错过的装备，或是试试别的武器，都能在一个窗口里完成。
 
-**[下载 Windows 版](https://github.com/qry6868/PBZ-Editor/releases/tag/v0.3.0)** · [更新说明](docs/releases/0.3.0.zh-CN.md)
+**[直接下载 Windows 运行包](https://github.com/qry6868/PBZ-Editor/releases/download/v0.3.0/PBZ-Editor-0.3.0-windows-x64.zip)** · [发布页与校验和](https://github.com/qry6868/PBZ-Editor/releases/tag/v0.3.0) · [更新说明](docs/releases/0.3.0.zh-CN.md)
 
 目前是 **v0.3.0 预览版**，运行于 Windows x64。已验证的参考环境是 Steam build **26266538**；游戏更新后会自动检查存档和物品数据，兼容的部分可以继续编辑，不再按版本号整包拦住。
 

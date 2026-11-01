@@ -2,11 +2,15 @@
 
 [简体中文](README.md) | English
 
+[![Windows build](https://github.com/qry6868/PBZ-Editor/actions/workflows/build.yml/badge.svg)](https://github.com/qry6868/PBZ-Editor/actions/workflows/build.yml)
+
+Offline Windows save editor · Free and open source (MIT) · Chinese / English
+
 This started with one missed item: **Arrowward**.
 
 The plan was to get it back. That grew into a small editor with item search, map filters and icons from the game. Find something, add it to your inventory, adjust its quantity or upgrade level, then save. You can recover a missed piece of gear or try another weapon without leaving the window.
 
-**[Download for Windows](https://github.com/qry6868/PBZ-Editor/releases/tag/v0.3.0)** · [What's new](docs/releases/0.3.0.en.md)
+**[Download the Windows app](https://github.com/qry6868/PBZ-Editor/releases/download/v0.3.0/PBZ-Editor-0.3.0-windows-x64.zip)** · [Release and checksums](https://github.com/qry6868/PBZ-Editor/releases/tag/v0.3.0) · [What's new](docs/releases/0.3.0.en.md)
 
 The current release is **v0.3.0 preview** for Windows x64. Steam build **26266538** is the tested reference. After a game update, the editor checks the save and item data automatically; compatible features remain available rather than blocking an entire build number.
 
