@@ -28,6 +28,7 @@ PUBLIC_ROOTS = [
     'docs/screenshots/03-saved.zh-CN.png', 'docs/screenshots/01-browse.en-US.png',
     'docs/screenshots/02-edit.en-US.png', 'docs/screenshots/03-saved.en-US.png',
     'docs/promotion/social-preview.svg', 'docs/promotion/social-preview.png',
+    'docs/promotion/social-preview.en-US.svg', 'docs/promotion/social-preview.en-US.png',
 ]
 
 

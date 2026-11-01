@@ -8,9 +8,9 @@
 <text x="60" y="285" fill="#526274" font-size="22">Phantom Blade Zero save editor</text>
 <text x="60" y="362" fill="#25384c" font-size="25">找物品 → 调数值 → 保存</text>
 <rect x="60" y="401" width="160" height="40" rx="6" fill="#e5f1fb"/>
-<text x="80" y="428" fill="#0f6cbd" font-size="17">中文 / English</text>
+<text x="73" y="428" fill="#0f6cbd" font-size="17">中文 / English</text>
 <rect x="233" y="401" width="132" height="40" rx="6" fill="#edf0f4"/>
-<text x="258" y="428" fill="#41556a" font-size="17">自动备份</text>
+<text x="245" y="428" fill="#41556a" font-size="17">自动备份</text>
 <text x="60" y="505" fill="#526274" font-size="18">影之刃零 · 离线物品编辑器</text>
 <text x="60" y="566" fill="#526274" font-size="16">github.com/qry6868/PBZ-Editor</text>
 <rect x="579" y="95" width="648" height="432" rx="9" fill="#dce3ec"/>
