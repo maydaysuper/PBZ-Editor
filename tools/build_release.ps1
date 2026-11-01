@@ -2,7 +2,8 @@ param([string]$PythonPath, [switch]$Zip, [string]$OutputDirectory)
 $ErrorActionPreference = 'Stop'
 $projectRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 if (-not $PythonPath) { $PythonPath = Join-Path $projectRoot '.venv\Scripts\python.exe' }
-$version = '0.2.0'
+$version = (& $PythonPath -c 'import sys,tomllib; print(tomllib.load(open(sys.argv[1], "rb"))["project"]["version"])' (Join-Path $projectRoot 'pyproject.toml')).Trim()
+if ($LASTEXITCODE -ne 0 -or $version -notmatch '^\d+\.\d+\.\d+$') { throw 'Invalid project version.' }
 $distRoot = Join-Path $projectRoot "dist\v$version"
 if ($OutputDirectory) {
     $distRoot = if ([IO.Path]::IsPathRooted($OutputDirectory)) { [IO.Path]::GetFullPath($OutputDirectory) } else { [IO.Path]::GetFullPath((Join-Path $projectRoot $OutputDirectory)) }

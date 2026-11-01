@@ -10,6 +10,7 @@ from PySide6.QtGui import QFont
 from .paths import local_dir
 from .i18n import set_language, system_language, tr, language
 from .ui import EditorWindow, configure_application
+from . import __version__
 
 
 def main(argv=None):
@@ -24,7 +25,7 @@ def main(argv=None):
     args = parser.parse_args(argv)
     app = QApplication.instance() or QApplication(sys.argv[:1])
     app.setApplicationName("PBZ Editor")
-    app.setApplicationVersion("0.2.0")
+    app.setApplicationVersion(__version__)
     app.setOrganizationName("PBZ Editor")
     configure_application(app)
     set_language(args.language or system_language())

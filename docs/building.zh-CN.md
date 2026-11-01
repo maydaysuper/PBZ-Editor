@@ -14,11 +14,11 @@ rustup override set 1.99.1-x86_64-pc-windows-gnu
 .\tools\build_release.ps1 -Zip
 ```
 
-输出：`dist/v0.2.0/` 下的 Windows ZIP、源码 ZIP 和 SHA256SUMS.txt。运行包内置 Python、Qt 和开放源码解码器，不需要专有 Oodle DLL。
+输出：`dist/v0.3.0/` 下的 Windows ZIP、源码 ZIP 和 SHA256SUMS.txt。运行包内置 Python、Qt 和开放源码解码器，不需要专有 Oodle DLL。
 
 源码启动：`.\.venv\Scripts\python.exe -m pbz_editor.app`。可加 `--language en-US` 或 `--language zh-CN`。设置 `PBZ_EDITOR_DATA_DIR` 可指定独立测试数据目录。
 
-无本机资源的环境会跳过可选真实资源测试。公开测试仅动态生成合成存档；不要加入实际玩家存档或提取的资源。`data/profile.json` 只记录适配资源的路径与指纹。新游戏版本需要重新核对资源布局与写入规则，不能只改 build 编号。
+无本机资源的环境会跳过可选真实资源测试。公开测试仅动态生成合成存档；不要加入实际玩家存档或提取的资源。`data/profile.json` 只记录资源路径、指纹、属性布局和密钥定位参考。新增规则需要核对实际字段语义与写入结果，不能只改 build 编号或替换指纹。
 
 目录生成：`python tools/build_catalog.py --game-dir <game-root>`。解析器只读游戏安装，从资源建立中英文目录、地图和图标。运行数据保留在本机私有目录。
 

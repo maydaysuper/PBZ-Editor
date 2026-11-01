@@ -6,9 +6,12 @@ from tools.release_contents import validation_matches
 
 
 @pytest.mark.parametrize('changed', [None, 'pbz_editor/core.py', 'pbz_editor/compression.py',
-                                   'native/src/lib.rs', 'codec.dll'])
+                                   'native/src/lib.rs', 'pbz_editor/compatibility.py', 'pbz_editor/bootstrap.py',
+                                   'pbz_editor/catalog_builder.py', 'data/profile.json', 'codec.dll'])
 def test_runtime_attestation_requires_exact_implementation_and_codec(tmp_path, changed):
-    files = ['pbz_editor/core.py', 'pbz_editor/compression.py', 'native/src/lib.rs']
+    files = ['pbz_editor/core.py', 'pbz_editor/compression.py', 'native/src/lib.rs',
+             'pbz_editor/compatibility.py', 'pbz_editor/bootstrap.py',
+             'pbz_editor/catalog_builder.py', 'data/profile.json']
     for name in files + ['codec.dll']:
         path = tmp_path/name
         path.parent.mkdir(parents=True, exist_ok=True)

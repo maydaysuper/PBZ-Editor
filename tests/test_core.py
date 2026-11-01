@@ -264,11 +264,11 @@ class SessionTests(unittest.TestCase):
         with self.assertRaises(EditorError):
             self.session.preview('AutoSave0',[{'action':'add','id':'HairStyle_Climax','category':'appearance'}])
 
-    def test_unknown_executable_version_rejected_before_key_lookup(self):
+    def test_unrecognizable_executable_is_rejected_before_write(self):
         executable=self.directory/'game/platform/steam/PBZ.exe'
         executable.parent.mkdir(parents=True)
         executable.write_bytes(b'MZ-not-the-supported-build')
-        with self.assertRaisesRegex(EditorError,'26266538'):
+        with self.assertRaisesRegex(EditorError,'密钥布局'):
             SaveSession.open(self.source_path,self.directory/'game')
 
     def test_outfit_remove_preserves_other_global_fields(self):

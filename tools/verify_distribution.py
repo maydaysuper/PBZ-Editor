@@ -46,7 +46,10 @@ def main():
               'game_runtime_verification': 'NOT_TESTED'}
     if args.reference_data:
         for name in ('catalog.json', 'regions.json'):
-            assert contains_reference(json.loads((catalog_path.parent/name).read_text(encoding='utf8')), json.loads((args.reference_data/name).read_text(encoding='utf8')))
+            reference = json.loads((args.reference_data/name).read_text(encoding='utf8'))
+            if 'steam_build' in reference:
+                reference['reference_build'] = reference.pop('steam_build')
+            assert contains_reference(json.loads((catalog_path.parent/name).read_text(encoding='utf8')), reference)
         report['catalog_and_regions_equal_reference'] = True
     index = json.loads((args.prepared_root/'icons/index.json').read_text(encoding='utf8'))
     report['icons'], report['unique_textures'] = len(index['items']), index['texture_count']

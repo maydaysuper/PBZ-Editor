@@ -6,9 +6,9 @@ This started with one missed item: **Arrowward**.
 
 The plan was to get it back. That grew into a small editor with item search, map filters and icons from the game. Find something, add it to your inventory, adjust its quantity or upgrade level, then save. You can recover a missed piece of gear or try another weapon without leaving the window.
 
-**[Download for Windows](https://github.com/qry6868/PBZ-Editor/releases/tag/v0.2.0)** · [What's new](docs/releases/0.2.0.en.md)
+**[Download for Windows](https://github.com/qry6868/PBZ-Editor/releases/tag/v0.3.0)** · [What's new](docs/releases/0.3.0.en.md)
 
-The current release is **v0.2.0 preview**, for Windows x64 and Steam build **26266538**. Other game builds aren't supported yet; the editor blocks writes to them.
+The current release is **v0.3.0 preview** for Windows x64. Steam build **26266538** is the tested reference. After a game update, the editor checks the save and item data automatically; compatible features remain available rather than blocking an entire build number.
 
 ## A quick look
 
@@ -28,7 +28,7 @@ These are captures of the actual app using a generated demo inventory. The file 
 
 ## Give it a try
 
-1. Download `PBZ-Editor-0.2.0-windows-x64.zip`, **extract the whole archive**, and exit the game.
+1. Download `PBZ-Editor-0.3.0-windows-x64.zip`, **extract the whole archive**, and exit the game.
 2. Run `PBZ-Editor.exe`. It usually finds the game and save for you. If it doesn't, choose them manually; if several accounts appear, pick your own progress.
 3. Search the item library by name, or browse by category and map. Select an item and click **Add to inventory**.
 4. Adjust its quantity or level on the right, then click **Save changes** in the top corner.
@@ -49,7 +49,13 @@ A few things to keep in mind:
 - **Medicine uses still follow the game's rules.** Loading may refill them, so arbitrary counts aren't guaranteed to stay exactly as entered.
 - A map association isn't necessarily the only place to get an item. Full outfits unlock in the account wardrobe.
 
-Five sample categories have passed a game load, manual save, exit and readback. Every item's appearance and effects haven't been checked individually. The [validation notes](docs/validation.en.md) explain what has been tested and what remains uncertain.
+Five sample categories passed a game load, manual save, exit and readback in v0.2.0. This release adds automatic compatibility and file-roundtrip tests; other game builds have not been tested in-game. The [validation notes](docs/validation.en.md) explain what has been tested and what remains uncertain.
+
+## What happens after a game update?
+
+Open the editor as usual. Relocated key material or changed item values can continue working when format checks pass. A changed item schema makes only that category read-only. Unavailable map data doesn't stop search or category browsing.
+
+A save layout that can be fully read but isn't supported for writing opens read-only. If decryption or complete parsing fails, the editor explains why and stops. There is no build selector or force-write override. See [automatic compatibility](docs/compatibility.en.md) for the details.
 
 ## Updates and backups
 

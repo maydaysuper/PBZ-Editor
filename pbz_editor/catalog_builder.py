@@ -19,21 +19,46 @@ def plain_text(text):
     return re.sub(r'<[^>]*>','',text).strip()
 
 
-def build_catalog(store, zh, en, expected):
+def row_schema(row):
+    from .region_builder import header
+    properties, zero, after = header(row['raw'], 8)
+    if after >= len(row['raw']) or not properties or max(properties) > 1024:
+        raise ValueError('Invalid item property header')
+    return properties
+
+
+def build_catalog(store, zh, en, expected, layouts=None, tolerant=False):
     lookup = {path.casefold(): path for path in store.files}
-    items, coverage = {}, []
+    items, coverage, unavailable = {}, [], {}
     for table, (category, source) in TABLES.items():
-        data = store.read_file(lookup[source.casefold()])
-        checksum = hashlib.sha256(data).hexdigest()
-        if checksum != expected.get(source):
-            raise ValueError('物品表与已适配版本不一致：' + table)
-        rows, count = table_rows(data, category)
+        try:
+            data = store.read_file(lookup[source.casefold()])
+            checksum = hashlib.sha256(data).hexdigest()
+            reference = checksum == expected.get(source)
+            if not reference and not tolerant:
+                raise ValueError('物品表与已适配版本不一致：' + table)
+            rows, count = table_rows(data, category)
+            if any(row['id'] not in ('None', '') and not re.fullmatch(r'[A-Za-z_][A-Za-z0-9_]{0,255}', row['id']) for row in rows):
+                raise ValueError('Unrecognized item identifier layout')
+            if not reference:
+                accepted = (layouts or {}).get(category, [])
+                if not accepted or any(row_schema(row) not in accepted for row in rows):
+                    raise ValueError('Item property schema changed')
+            # Validate the entire category before accepting any of its rows.
+            parsed = [item_metadata(row, category, source, zh, en)
+                      for row in rows if row['id'] not in ('None', '')]
+        except (ValueError, KeyError, IndexError, struct.error, OSError) as error:
+            if not tolerant:
+                raise
+            unavailable[category] = str(error)
+            continue
         omitted, duplicates = [], []
+        parsed = iter(parsed)
         for row in rows:
             if row['id'] in ('None', ''):
                 omitted.append(row['row_name'])
                 continue
-            item = item_metadata(row, category, source, zh, en)
+            item = next(parsed)
             key = category, item['id'].casefold()
             if key in items:
                 duplicates.append({'id': item['id'], 'row_name': item['row_name']})
@@ -43,13 +68,16 @@ def build_catalog(store, zh, en, expected):
                 items[key] = item
         coverage.append({'table': table, 'source': source, 'category': category,
             'declared_rows': count, 'parsed_rows': len(rows), 'sha256': checksum,
+            'compatibility': 'reference' if reference else 'structural',
             'omitted_empty_ids': omitted, 'duplicate_variants': duplicates})
-    return {'schema_version': 1, 'game': 'Phantom Blade Zero', 'steam_build': '26266538',
+    return {'schema_version': 1, 'game': 'Phantom Blade Zero', 'reference_build': '26266538',
         'verification': 'catalog_verified; game-runtime NOT_TESTED',
         'categories': dict(Counter(i['category'] for i in items.values())),
         'editable_entries': sum(i['supported'] for i in items.values()),
         'non_item_assets': sum(not i['supported'] for i in items.values()),
-        'sources': coverage, 'items': list(items.values())}
+        'sources': coverage, 'items': list(items.values()),
+        'available_categories': [category for category, _ in TABLES.values() if category not in unavailable],
+        'unavailable_categories': unavailable}
 
 
 def normalize_name(raw,fallback=''):
@@ -66,6 +94,8 @@ def table_rows(data,category):
     names,_=name_batch(data)
     header=struct.unpack_from('<I',data,4)[0]
     declared=struct.unpack_from('<I',data,header+10)[0]
+    if not 1 <= declared <= 50000:
+        raise ValueError('Invalid table row count')
     start=header+14
     if category in ('weapon','phantom'):
         tag='Weapon.Slot.Main' if category=='weapon' else 'Weapon.Slot.ShaChi'
@@ -158,6 +188,11 @@ def item_metadata(row,category,source,zh,en):
     description_en=plain_text('\n\n'.join(english_descriptions[:2])) or english_body
     item={'id':row['id'],'name':display,'name_en':english_name,'raw_name':raw_name,'category':category,'subcategory':subcategory,'description':description,'effects':[plain_text(x) for x in effect_descriptions[:8]],'max_level':max_level,'source':source,'row_name':row['row_name'],'experimental':experimental or part,'verification':'native_schema_verified_runtime_untested' if outfit else 'catalog_verified','supported':not part,'scope':'global' if outfit else 'slot','unsupported_reason':'模型、头发等外观组成资产，不是可解锁套装' if part else '', 'evidence':{'row_start':row['start'],'row_end':row['end'],'id_offset':row['id_offset'],'name_key':name_key}}
     item['description_en']=description_en
+    if outfit:
+        from .core import KNOWN_OUTFITS
+        if row['id'] not in KNOWN_OUTFITS:
+            item['supported'] = False
+            item['unsupported_reason'] = '该服装尚未验证解锁规则，仅供浏览。'
     if category=='accessory':
         item['base_max_level']=max_level
         item['max_level_note']='基础升级上限；高周目额外打磨由游戏按周目计算，尚未统一解析'

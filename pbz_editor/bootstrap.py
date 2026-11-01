@@ -1,6 +1,7 @@
 """Prepare user-local catalog/regions directly from an installed game."""
 import hashlib
 import json
+import struct
 import os
 from pathlib import Path
 import sys
@@ -10,8 +11,13 @@ from .catalog_builder import build_catalog
 from .region_builder import build_regions
 from .resources_reader import IoStore, localization
 from .pak_reader import PakReader
+from .compatibility import executable_path
+from .catalog import Catalog
+from .catalog_builder import TABLES
+from .regions import RegionIndex
+from . import __version__
 
-SCHEMA = 2
+SCHEMA = 3
 MAP_ASSETS = {
     'DT_MapItemData': 'ProjectPBZ/Content/PBZContent/Maps/DT_MapItemData.uasset',
     'DT_MapData': 'ProjectPBZ/Content/PBZContent/DataTable/UI/DT_MapData.uasset',
@@ -28,12 +34,14 @@ def sha(data):
 
 
 def signature(game, profile):
-    root = Path(game)/'ProjectPBZ/Content/Paks'
-    with (root/'ProjectPBZ-Windows.pak').open('rb') as stream:
-        stream.seek(-221, 2)
-        footer = stream.read(221)
-    return sha((root/'ProjectPBZ-Windows.utoc').read_bytes() + footer +
-               json.dumps(profile, sort_keys=True).encode())
+    game = Path(game)
+    root = game/'ProjectPBZ/Content/Paks'
+    files = [executable_path(game), *sorted(root.glob('ProjectPBZ-Windows*'))]
+    identities = [(p.relative_to(game).as_posix(), p.stat().st_size, p.stat().st_mtime_ns)
+                  for p in files if p.is_file()]
+    # This invalidates local caches on normal game updates. Resource contents
+    # are independently parsed/checked when generating a new cache.
+    return sha(json.dumps([SCHEMA, __version__, identities, profile], sort_keys=True).encode())
 
 
 def prepared_catalog(game, root):
@@ -52,7 +60,7 @@ def prepared_catalog(game, root):
 
 
 def prepare_data(game, root, progress=None, cancel=None):
-    from .core import game_key, OodleCodec
+    from .core import OodleCodec
     game, root = Path(game), Path(root)
     cancel = cancel or threading.Event()
     def step(text):
@@ -64,30 +72,49 @@ def prepare_data(game, root, progress=None, cancel=None):
     if cached:
         return cached
     step('正在核对游戏版本…')
-    game_key(game)
+    executable_path(game)
     profile = json.loads(profile_path().read_text(encoding='utf8'))
+    initial_signature = signature(game, profile)
     codec = OodleCodec()
+    warnings = []
     step('正在读取本机游戏文本…')
-    pak = PakReader(game/'ProjectPBZ/Content/Paks/ProjectPBZ-Windows.pak', codec)
-    locs = {lang: localization(pak.read_file('ProjectPBZ/Content/Localization/Game/'+lang+'/Game.locres'))
-            for lang in ('zh-Hans', 'en-US')}
+    pak = None
+    locs = {}
+    try:
+        pak = PakReader(game/'ProjectPBZ/Content/Paks/ProjectPBZ-Windows.pak', codec)
+    except (ValueError, OSError, struct.error):
+        warnings.append('游戏文字暂不可用，物品将显示原始名称。')
+    for lang in ('zh-Hans', 'en-US'):
+        try:
+            locs[lang] = localization(pak.read_file('ProjectPBZ/Content/Localization/Game/'+lang+'/Game.locres')) if pak else {}
+        except (ValueError, KeyError, OSError, struct.error, UnicodeError):
+            locs[lang] = {}
+            warnings.append('部分游戏文字暂不可用，保留原始名称。')
     step('正在生成物品目录…')
-    store = IoStore(game/'ProjectPBZ/Content/Paks/ProjectPBZ-Windows.utoc', codec)
-    catalog = build_catalog(store, locs['zh-Hans'], locs['en-US'], profile['resources'])
-    if len(catalog['items']) != profile['catalog_entries'] or catalog['editable_entries'] != profile['editable_entries']:
-        raise ValueError('物品目录未通过当前版本的数量校验。')
+    try:
+        store = IoStore(game/'ProjectPBZ/Content/Paks/ProjectPBZ-Windows.utoc', codec)
+    except (ValueError, IndexError, KeyError, struct.error, OSError):
+        store = None
+    if store:
+        catalog = build_catalog(store, locs['zh-Hans'], locs['en-US'], profile['resources'],
+                                profile.get('item_property_schemas'), tolerant=True)
+    else:
+        catalog = {'items': [], 'sources': [], 'available_categories': [],
+                   'unavailable_categories': {category: 'Game resource format unavailable' for category, _ in TABLES.values()}}
     step('正在生成地图分类…')
-    lookup = {p.casefold(): p for p in store.files}
-    assets = {}
-    for name, path in MAP_ASSETS.items():
-        data = store.read_file(lookup[path.casefold()])
-        if sha(data) != profile['resources'][path]:
-            raise ValueError('地图数据与已适配版本不一致。')
-        assets[name] = data
-    groups = pak.read_file('ProjectPBZ/Content/JavaScript/Library/MapAreaGroups.js')
-    if sha(groups) != profile['map_groups_sha256']:
-        raise ValueError('地图分组与已适配版本不一致。')
-    regions = build_regions(assets, locs['zh-Hans'], catalog, groups.decode('utf8'), locs['en-US'])
+    try:
+        lookup = {p.casefold(): p for p in store.files}
+        assets = {name: store.read_file(lookup[path.casefold()]) for name, path in MAP_ASSETS.items()}
+        groups = pak.read_file('ProjectPBZ/Content/JavaScript/Library/MapAreaGroups.js')
+        regions = build_regions(assets, locs['zh-Hans'], catalog, groups.decode('utf8'), locs['en-US'])
+        RegionIndex(regions)
+    except (ValueError, AssertionError, AttributeError, IndexError, KeyError, OSError, struct.error, UnicodeError):
+        regions = {'schema_version': 1, 'regions': [], 'items': []}
+        warnings.append('地图分类暂不可用，仍可搜索和按类别查找物品。')
+    Catalog(catalog['items'])
+    catalog['compatibility_warnings'] = list(dict.fromkeys(warnings))
+    if signature(game, profile) != initial_signature:
+        raise ValueError('游戏文件在检查期间发生变化，请重新打开。')
     step('正在校验并保存本地数据…')
     # Publish the ready manifest last. A cancelled/interrupted preparation is
     # not mistaken for a valid cache on the next run.
@@ -104,7 +131,7 @@ def prepare_data(game, root, progress=None, cancel=None):
         finally:
             if temporary.exists():
                 temporary.unlink()
-    manifest = {'schema': SCHEMA, 'source': signature(game, profile), 'files': files}
+    manifest = {'schema': SCHEMA, 'source': initial_signature, 'files': files}
     temporary = target/('.'+uuid.uuid4().hex+'.tmp')
     try:
         temporary.write_text(json.dumps(manifest), encoding='utf8')

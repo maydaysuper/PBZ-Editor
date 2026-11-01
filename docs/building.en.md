@@ -14,11 +14,11 @@ rustup override set 1.99.1-x86_64-pc-windows-gnu
 .\tools\build_release.ps1 -Zip
 ```
 
-Output: the Windows ZIP, source ZIP and SHA256SUMS.txt under `dist/v0.2.0/`. The runtime includes Python, Qt and an open-source decoder. No proprietary Oodle DLL is required.
+Output: the Windows ZIP, source ZIP and SHA256SUMS.txt under `dist/v0.3.0/`. The runtime includes Python, Qt and an open-source decoder. No proprietary Oodle DLL is required.
 
 Run source: `.\.venv\Scripts\python.exe -m pbz_editor.app`. Optional flags: `--language en-US` or `--language zh-CN`. Set `PBZ_EDITOR_DATA_DIR` for isolated test data.
 
-Without local resources, optional real-game integration tests are skipped. Public tests dynamically create synthetic saves. Do not add real player saves or extracted assets. `data/profile.json` contains resource paths and fingerprints only. Supporting another game build requires checking layouts and write rules, not just changing the build number.
+Without local resources, optional real-game integration tests are skipped. Public tests dynamically create synthetic saves. Do not add real player saves or extracted assets. `data/profile.json` contains resource paths, fingerprints, property layouts and key-location references. New rules require actual field-semantic and write-result checks, not just a different build number or fingerprint.
 
 Generate metadata: `python tools/build_catalog.py --game-dir <game-root>`. Read-only parsers prepare Chinese/English metadata, maps and icons from the installed game. Generated data stays private on the user's machine.
 

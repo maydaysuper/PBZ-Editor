@@ -6,6 +6,7 @@ from PySide6.QtCore import QSize
 import threading
 from .draft import InventoryDraft, item_key
 from .paths import resolve_game
+from . import __version__
 
 
 class EditorWindow(QMainWindow):
@@ -19,7 +20,7 @@ class EditorWindow(QMainWindow):
         self.setMinimumSize(1050, 720)
         self.settings = load_settings()
         set_language(language_code or self.settings.get('language') or (system_language() if auto_language else 'zh-CN'))
-        self.setWindowTitle(tr('PBZ Editor 0.2.0 · 影之刃零 · Fluent'))
+        self.setWindowTitle(tr('PBZ Editor {0} · 影之刃零', __version__))
         if game_dir:
             self.settings['game_dir'] = str(game_dir)
         if oodle_path:
@@ -97,7 +98,7 @@ class EditorWindow(QMainWindow):
         self.more_menu.addAction(tr('另存为副本…'), self.export_save)
         self.more_menu.addAction(tr('放弃全部修改'), self.discard)
         self.more_menu.addSeparator()
-        self.more_menu.addAction(tr('通过内部 ID 添加…'), self.advanced_add)
+        self.advanced_action = self.more_menu.addAction(tr('通过内部 ID 添加…'), self.advanced_add)
         self.internal_action = self.more_menu.addAction(tr('显示内部条目与编号'))
         self.internal_action.setCheckable(True)
         self.internal_action.toggled.connect(self.refresh_all)
@@ -149,6 +150,10 @@ class EditorWindow(QMainWindow):
         file_info.addWidget(label(tr('保存前自动备份'), 'caption'), alignment=Qt.AlignmentFlag.AlignRight)
         saved.addLayout(file_info)
         layout.addWidget(self.save_card)
+        self.compatibility_label = label('', 'compatibility', True)
+        self.compatibility_label.setContentsMargins(16, 6, 16, 6)
+        self.compatibility_label.hide()
+        layout.addWidget(self.compatibility_label)
         self.welcome = QFrame()
         self.welcome.setObjectName('inspector')
         intro = QHBoxLayout(self.welcome)
@@ -373,7 +378,7 @@ class EditorWindow(QMainWindow):
         self.settings['language'] = selected
         save_settings(self.settings)
         set_language(selected)
-        self.setWindowTitle(tr('PBZ Editor 0.2.0 · 影之刃零 · Fluent'))
+        self.setWindowTitle(tr('PBZ Editor {0} · 影之刃零', __version__))
         self._reveal_timer.stop()
         internal = self.internal_action.isChecked()
         for child in (self.save_shortcut, self.undo_shortcut, self._reveal_timer, self.more_menu):
@@ -720,12 +725,11 @@ class EditorWindow(QMainWindow):
             return
         game = self.settings.get('game_dir')
         def inspect():
-            from .core import SaveSession, PBZSContainer, OodleCodec, game_key
-            container = PBZSContainer(game_key(game), OodleCodec())
+            from .core import SaveSession
             result = []
             for path in saves:
                 try:
-                    session = SaveSession(Path(path), Path(game), container, Path(path).read_bytes(), local_dir())
+                    session = SaveSession.open(path, game)
                     current = next((s for s in session.slots if s['name'] == session.current_slot), {})
                     result.append((str(path), current, None))
                 except (ValueError, OSError) as error:
@@ -1004,7 +1008,7 @@ class EditorWindow(QMainWindow):
 
     def _edit_selected(self, *_):
         key = self.bag_selected
-        if not self.draft or not key or key not in self.owned or self.busy:
+        if not self.draft or not key or key not in self.owned or self.busy or not self.session.can_edit(self.slot_name(), key[0]):
             return
         item = self._definition(key)
         quantity = self.quantity_spin.value() if key[0] in ('goods', 'medicine') else 1
@@ -1065,14 +1069,40 @@ class EditorWindow(QMainWindow):
         item = self.selected_item
         present = bool(item and item_key(item) in self.owned and item['category'] in UNIQUE | {'medicine'})
         self.add_button.setText(tr('在背包中查看') if present else tr('添加到背包'))
-        self.add_button.setEnabled(ready and bool(item and item.get('supported', True)))
-        self.remove_button.setEnabled(ready and self.bag_selected in self.owned)
+        selected_editable = bool(ready and item and self.session.can_edit(self.slot_name(), item['category']))
+        self.add_button.setEnabled(ready and bool(item and item.get('supported', True)) and (present or selected_editable))
+        bag_editable = bool(ready and self.bag_selected and self.session.can_edit(self.slot_name(), self.bag_selected[0]))
+        self.remove_button.setEnabled(bag_editable and self.bag_selected in self.owned)
+        self.editor.setEnabled(bag_editable)
+        self.advanced_action.setEnabled(ready and any(self.session.can_edit(self.slot_name(), c) for c in CATEGORIES if c != 'all'))
+        if ready and self.bag_selected and not bag_editable:
+            self.bag_note.setText(tr(self.session.category_issue(self.slot_name(), self.bag_selected[0])))
+        self._show_compatibility()
         for widget in (self.sidebar, self.library_panel, self.backpack_panel, self.slot_combo,
                        self.open_button, self.more_button, self.backups_button):
             widget.setEnabled(not self.busy)
         self.choose_game_button.setEnabled(not self.busy)
         self.cancel_prepare_button.setVisible(self.preparing and self.busy)
         self.language_combo.setEnabled(not self.busy and not self.icons_loading)
+
+    def _show_compatibility(self):
+        if not self.session or not self.draft:
+            self.compatibility_label.hide()
+            return
+        report = self.session.compatibility
+        notes = []
+        if self.session.read_only:
+            notes.append(tr('只读模式：存档格式已变化，已暂停写入。'))
+        elif report:
+            blocked = [tr(CATEGORIES[c]) for c in CATEGORIES if c != 'all'
+                       and not self.session.can_edit(self.slot_name(), c)]
+            if blocked:
+                notes.append(tr('部分功能仅可查看：{0}。', ' / '.join(blocked)))
+            if report['executable'] != 'reference' or report.get('structural_categories'):
+                notes.append(tr('存档格式检查通过 · 此游戏版本尚未经游戏回读验证。'))
+            notes.extend(tr(value) for value in report.get('warnings', []))
+        self.compatibility_label.setText('\n'.join(notes))
+        self.compatibility_label.setVisible(bool(notes))
 
     def apply_save(self, _=False, after=None):
         if self.busy or not self.draft:
@@ -1184,7 +1214,7 @@ class EditorWindow(QMainWindow):
                     lambda result: (self._new_draft(self.slot_name()), self.status.setText(tr('备份已恢复。'))))
             self._resolve_changes(start)
         restore_button = button(tr('恢复所选备份'), restore)
-        restore_button.setEnabled(bool(backups and self.session))
+        restore_button.setEnabled(bool(backups and self.session and not self.session.read_only))
         row.addWidget(restore_button)
         layout.addLayout(row)
         dialog.exec()

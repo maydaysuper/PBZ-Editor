@@ -1,6 +1,6 @@
 """Authenticated PBZS containers and category-aware, lossless inventory edits.
 
-The installed game supplies version-bound key material. No proprietary library
+The installed game supplies authenticated key material. No proprietary library
 or private save is distributed with this module.
 """
 from __future__ import annotations
@@ -27,8 +27,6 @@ class EditorError(ValueError):
     """A user-readable failure which leaves the input save unchanged."""
 
 
-SUPPORTED_EXE_SHA256 = "7b4fcd286a350780faf0824d73aa150b21cbf1bccde883e6a96386cbe09973b4"
-SUPPORTED_BUILD = "26266538"
 MAX_SLOT_BYTES = 64 * 1024 * 1024
 MAX_FILE_BYTES = 256 * 1024 * 1024
 CATEGORY_FIELDS = {
@@ -142,10 +140,11 @@ class OodleCodec:
 
 class PBZSContainer:
     """Strict parser for the observed version 3, sealed-directory container."""
-    def __init__(self, key: bytes, codec: OodleCodec | None = None):
+    def __init__(self, key: bytes, codec: OodleCodec | None = None, allow_unknown_version=False):
         if len(key) != 32:
             raise EditorError("存档密钥长度错误。")
         self.key, self.codec = key, codec
+        self.allow_unknown_version = allow_unknown_version
 
     def unseal(self, block: bytes) -> bytes:
         if len(block) < 36 or block[:8] != b"PBZS\x01\x01\x00\x00":
@@ -185,7 +184,7 @@ class PBZSContainer:
         if not 12 <= len(data) <= MAX_FILE_BYTES or data[:4] != b"PBZS":
             raise EditorError("这不是支持的 PBZS 存档文件。")
         version, flags, count, directory_size = struct.unpack_from("<BBHI", data, 4)
-        if version != 3 or flags != 1 or not 1 <= count <= 4096:
+        if (version != 3 and not self.allow_unknown_version) or flags != 1 or not 1 <= count <= 4096:
             raise EditorError("暂不支持此 PBZS 容器版本或标志。")
         if not 36 <= directory_size <= len(data) - 12:
             raise EditorError("存档目录长度无效。")
@@ -409,22 +408,8 @@ def inventory_level(category: str, record: dict) -> int:
 
 
 def game_key(game_dir):
-    game = Path(game_dir).resolve()
-    executable = game / 'platform/steam/PBZ.exe'
-    if not executable.is_file():
-        raise EditorError('请选择含 platform/steam/PBZ.exe 的游戏根目录。')
-    hasher = hashlib.sha256()
-    with executable.open('rb') as stream:
-        for block in iter(lambda: stream.read(4 * 1024 * 1024), b''):
-            hasher.update(block)
-    if hasher.hexdigest() != SUPPORTED_EXE_SHA256:
-        raise EditorError(f'当前游戏版本尚未适配。本版支持 Steam build {SUPPORTED_BUILD}，文件未修改。')
-    with executable.open('rb') as stream:
-        stream.seek(0xc1c7b28)
-        left = stream.read(32)
-        stream.seek(0xc1c7b48)
-        right = stream.read(32)
-    return bytes(a ^ b for a, b in zip(left, right))
+    from .compatibility import resolve_key
+    return resolve_key(game_dir)[0]
 
 
 def medicine_slots(inventory: dict, item_id: str) -> list[str]:
@@ -748,6 +733,8 @@ class SaveSession:
         self.entries = container.decode(source)
         self.local_dir = (local_dir or project_local_dir()).resolve()
         self.backup_dir = self.local_dir / "backups"
+        self.compatibility = None
+        self.game_signature = None
         self._refresh_metadata()
 
     def _refresh_metadata(self):
@@ -757,9 +744,15 @@ class SaveSession:
             if not isinstance(entry["json"].get("Inventory"), dict):
                 continue
             data = entry["json"].get("PBZGameSystem", {})
+            data = data if isinstance(data, dict) else {}
             self.slots.append({"name": entry["name"], "date": data.get("DateTimeString", ""),
                                "level": data.get("CurrentLevelName", ""), "playtime": data.get("HasGameTime", 0),
                                "current": entry["name"] == self.current_slot, "cycle": data.get("CycleCount", 0)})
+            for field in ('date', 'level'):
+                if not isinstance(self.slots[-1][field], str):
+                    self.slots[-1][field] = ''
+            if not isinstance(self.slots[-1]['playtime'], (int, float)) or self.slots[-1]['playtime'] < 0:
+                self.slots[-1]['playtime'] = 0
         if self.current_slot not in {s["name"] for s in self.slots}:
             self.current_slot = self.slots[0]["name"] if self.slots else ""
 
@@ -774,10 +767,57 @@ class SaveSession:
     @classmethod
     def open(cls, save_path: str | Path, game_dir: str | Path, oodle_path: str | Path | None = None, local_dir: str | Path | None = None):
         game, save = Path(game_dir).resolve(), Path(save_path).resolve()
-        key = game_key(game)
+        if save.stat().st_size > MAX_FILE_BYTES:
+            raise EditorError('这不是支持的 PBZS 存档文件。')
         source = save.read_bytes()
+        from .compatibility import resolve_key, load_profile
+        from .bootstrap import prepare_data, signature
+        initial_signature = signature(game, load_profile())
+        key, compatibility = resolve_key(game, source)
         codec = OodleCodec(oodle_path, game)
-        return cls(save, game, PBZSContainer(key, codec), source, Path(local_dir) if local_dir else None)
+        session = cls(save, game, PBZSContainer(key, codec, allow_unknown_version=True), source,
+                      Path(local_dir) if local_dir else None)
+        catalog_path = prepare_data(game, session.local_dir)
+        catalog = json.loads(catalog_path.read_text(encoding='utf8'))
+        session.compatibility = {**compatibility, 'available_categories': catalog.get('available_categories', []),
+                                 'unavailable_categories': catalog.get('unavailable_categories', {}),
+                                 'warnings': catalog.get('compatibility_warnings', []),
+                                 'structural_categories': [s['category'] for s in catalog.get('sources', [])
+                                                           if s.get('compatibility') == 'structural']}
+        if signature(game, load_profile()) != initial_signature:
+            raise EditorError('游戏文件在检查期间发生变化，请重新打开。')
+        session.game_signature = initial_signature
+        return session
+
+    @property
+    def read_only(self):
+        return self.source[4] != 3
+
+    def category_issue(self, slot, category):
+        if self.read_only:
+            return '此存档格式尚未验证写入，当前仅可查看。'
+        if self.compatibility is None:
+            return None
+        if category not in self.compatibility['available_categories']:
+            return '该类别的物品数据暂不兼容，其他类别仍可编辑。'
+        if category == 'appearance':
+            advanced = next((e['json'] for e in self.entries if e['name'] == '__Advanced__'), {})
+            value = advanced
+            for field in ('PBZAppearanceComponent', 'Hun', 'Outfits'):
+                if not isinstance(value, dict):
+                    return '账号衣柜的结构已变化，当前仅可查看。'
+                if field not in value and self.compatibility['executable'] != 'reference':
+                    return '账号衣柜的结构已变化，当前仅可查看。'
+                value = value.get(field, {})
+            if not isinstance(value, dict) or any(not isinstance(v, dict) for v in value.values()):
+                return '账号衣柜的结构已变化，当前仅可查看。'
+            return None
+        from .compatibility import slot_category_issue
+        return slot_category_issue(self._entry(slot)['json'].get('Inventory'), category,
+                                   reference=self.compatibility['executable'] == 'reference')
+
+    def can_edit(self, slot, category):
+        return category in (*CATEGORY_FIELDS, 'appearance') and self.category_issue(slot, category) is None
 
     def _entry(self, slot):
         entry = next((e for e in self.entries if e["name"] == slot and "Inventory" in e["json"]), None)
@@ -789,17 +829,27 @@ class SaveSession:
         inventory = self._entry(slot)["json"]["Inventory"]
         items = []
         for category, field in CATEGORY_FIELDS.items():
-            for item_id, record in inventory.get(field, {}).items():
+            records = inventory.get(field, {})
+            if not isinstance(records, dict):
+                continue
+            for item_id, record in records.items():
                 if not isinstance(record, dict):
                     continue
                 quantity = record.get("CurrentAmount", 0) if category == "goods" else record.get("CurrentTime", 0) if category == "medicine" else 1
-                level = inventory_level(category, record)
+                level_field = {'weapon': 'WeaponLevel', 'phantom': 'ShaChiWeaponLevel'}.get(category, 'CurrentLevel')
+                level = inventory_level(category, record) if isinstance(record.get(level_field, 0), int) else 0
+                quantity = quantity if isinstance(quantity, int) and quantity >= 0 else 0
                 item = {"id": item_id, "category": category, "quantity": quantity, "level": level, "record": copy.deepcopy(record), 'scope':'slot'}
                 if category == 'medicine':
                     item['equipped_slots'] = medicine_slots(inventory, item_id)
                 items.append(item)
         advanced = next((e['json'] for e in self.entries if e['name']=='__Advanced__'),{})
-        for item_id,record in advanced.get('PBZAppearanceComponent',{}).get('Hun',{}).get('Outfits',{}).items():
+        outfits = advanced
+        for field in ('PBZAppearanceComponent', 'Hun', 'Outfits'):
+            outfits = outfits.get(field, {}) if isinstance(outfits, dict) else {}
+        for item_id,record in (outfits.items() if isinstance(outfits, dict) else []):
+            if not isinstance(record, dict):
+                continue
             items.append({'id':item_id,'category':'appearance','quantity':1,'level':0,'record':copy.deepcopy(record),'scope':'global'})
         return items
 
@@ -807,6 +857,13 @@ class SaveSession:
         if not isinstance(operations,list) or len(operations)>5000 or any(not isinstance(op,dict) for op in operations):
             raise EditorError('操作清单无效或超过 5000 条。')
         entry = self._entry(slot)
+        for operation in operations:
+            category = operation.get('category')
+            if category not in (*CATEGORY_FIELDS, 'appearance'):
+                raise EditorError('该物品类别尚未支持。')
+            issue = self.category_issue(slot, category)
+            if issue:
+                raise EditorError(issue)
         local_ops = [op for op in operations if op.get('category')!='appearance']
         global_ops = [op for op in operations if op.get('category')=='appearance']
         replacements,changes = {},[]
@@ -861,8 +918,16 @@ class SaveSession:
         return view
 
     def _check_source(self):
+        self._check_game()
         if not self.save_path.is_file() or sha256(self.save_path.read_bytes()) != self.source_sha256:
             raise EditorError("存档已被游戏或其他程序更新。请重新打开存档，再应用修改。")
+
+    def _check_game(self):
+        if self.game_signature is not None:
+            from .compatibility import load_profile
+            from .bootstrap import signature
+            if signature(self.game_dir, load_profile()) != self.game_signature:
+                raise EditorError('游戏文件已更新，请重新打开存档完成兼容检查。')
 
     @staticmethod
     def _atomic_write(destination: Path, data: bytes, expected: str | None = None):
@@ -902,12 +967,14 @@ class SaveSession:
         return path
 
     def export(self, slot: str, operations: list[dict], destination: str | Path, compression="preserve") -> dict:
+        self._check_game()
         dest = Path(destination).resolve()
         if dest == self.save_path:
             raise EditorError("另存为不能覆盖正在编辑的源存档，请使用“写入存档”。")
         candidate, changes = self._candidate(slot, operations, compression)
         if dest.exists():
             raise EditorError("目标文件已存在，请选择新文件名。")
+        self._check_game()
         self._atomic_write(dest, candidate)
         return {"destination": str(dest), "backup_path": None, "sha256": sha256(candidate), "slot": slot,
                 "operation_count": len(changes), 'affected_slots':list(dict.fromkeys(c['slot'] for c in changes)), "file_verified": True, "game_runtime_verified": False}
@@ -933,6 +1000,8 @@ class SaveSession:
                 "slot": slot, "operation_count": len(changes), 'affected_slots':list(dict.fromkeys(c['slot'] for c in changes)), "file_verified": True, "game_runtime_verified": False}
 
     def restore(self, backup_path: str | Path, allow_newer: bool = False) -> dict:
+        if self.read_only:
+            raise EditorError('此存档格式尚未验证写入，当前仅可查看。')
         if _game_processes(self.game_dir):
             raise EditorError("请先退出游戏再恢复备份。")
         backup = Path(backup_path).resolve()
@@ -944,12 +1013,15 @@ class SaveSession:
         if sha256(data) != metadata.get("sha256") or Path(metadata.get("source_path", "")).resolve() != self.save_path:
             raise EditorError("备份内容或目标路径与备份记录不符。")
         self.container.decode(data)
+        if data[4] != 3:
+            raise EditorError('此存档格式尚未验证写入，当前仅可查看。')
         self._check_source()
         if self.source_sha256 != metadata.get("expected_current_sha256") and not allow_newer:
             raise EditorError("此备份之后已有新进度。默认不会覆盖；请明确选择允许放弃新进度。")
         displaced = self._backup(self.source, "before-restore", sha256(data))
         if _game_processes(self.game_dir):
             raise EditorError("游戏在验证期间启动，已取消恢复。")
+        self._check_source()
         self._atomic_write(self.save_path, data, self.source_sha256)
         self.source, self.source_sha256 = data, sha256(data)
         self.entries = self.container.decode(data)

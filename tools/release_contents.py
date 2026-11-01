@@ -10,6 +10,9 @@ import tomllib
 import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
+IMPLEMENTATION_FILES = ['pbz_editor/core.py', 'pbz_editor/compression.py', 'native/src/lib.rs',
+                        'pbz_editor/compatibility.py', 'pbz_editor/bootstrap.py',
+                        'pbz_editor/catalog_builder.py', 'data/profile.json']
 PUBLIC_ROOTS = [
     'pbz_editor', 'tests', 'tools', 'legal', 'native/src', 'native/vendor',
     'native/Cargo.toml', 'native/Cargo.lock', 'data/profile.json', 'launcher.py',
@@ -18,7 +21,9 @@ PUBLIC_ROOTS = [
     'docs/quick-start.txt', 'docs/quick-start.en.txt',
     'docs/validation.zh-CN.md', 'docs/validation.en.md',
     'docs/building.zh-CN.md', 'docs/building.en.md',
+    'docs/compatibility.zh-CN.md', 'docs/compatibility.en.md',
     'docs/releases/0.2.0.zh-CN.md', 'docs/releases/0.2.0.en.md', 'docs/releases/0.2.0.md',
+    'docs/releases/0.3.0.zh-CN.md', 'docs/releases/0.3.0.en.md', 'docs/releases/0.3.0.md',
     'docs/screenshots/01-browse.zh-CN.png', 'docs/screenshots/02-edit.zh-CN.png',
     'docs/screenshots/03-saved.zh-CN.png', 'docs/screenshots/01-browse.en-US.png',
     'docs/screenshots/02-edit.en-US.png', 'docs/screenshots/03-saved.en-US.png',
@@ -38,9 +43,8 @@ def public_files():
 
 
 def validation_matches(project, codec, validation):
-    implementation = ['pbz_editor/core.py', 'pbz_editor/compression.py', 'native/src/lib.rs']
     return (all(hashlib.sha256((project/name).read_bytes()).hexdigest() ==
-                validation.get('implementation_sha256', {}).get(name) for name in implementation)
+                validation.get('implementation_sha256', {}).get(name) for name in IMPLEMENTATION_FILES)
             and hashlib.sha256(codec.read_bytes()).hexdigest() == validation.get('codec_sha256'))
 
 
@@ -87,7 +91,8 @@ def finalize(release):
     codec = list(release.rglob('pbz_codec.dll'))
     if len(codec) != 1 or not list(release.rglob('qwindows.dll')):
         raise SystemExit('Native codec or Qt platform plugin is missing')
-    manifest = {'version': '0.2.0', 'python': sys.version.split()[0], 'dependencies': records,
+    version = tomllib.loads((ROOT/'pyproject.toml').read_text(encoding='utf8'))['project']['version']
+    manifest = {'version': version, 'python': sys.version.split()[0], 'dependencies': records,
                 'decoder': json.loads((ROOT/'.local/native/manifest.json').read_text(encoding='utf-8-sig')),
                 'runtime_game_verification': 'NOT_TESTED',
                 'executable_sha256': hashlib.sha256((release/'PBZ-Editor.exe').read_bytes()).hexdigest()}

@@ -219,7 +219,7 @@ def build_regions(assets, loc, catalog_data, group_script_text, english=None):
                 add(ident, mapid, {'source': 'ProjectPBZ/Content/PBZContent/Maps/DT_MapItemData.uasset',
                     'field': 'MapItemDatas.native_collection_point.ID', 'offset': off,
                     'source_kind': 'map_collection', 'native_record_properties': 8})
-    output = {'schema_version': 1, 'steam_build': '26266538', 'regions': definitions, 'items': sorted(result.values(), key=lambda x: (x['category'], x['id'])),
+    output = {'schema_version': 1, 'reference_build': '26266538', 'regions': definitions, 'items': sorted(result.values(), key=lambda x: (x['category'], x['id'])),
               'provenance': {'map_asset_sha256': hashlib.sha256(b).hexdigest(), 'map_entries': map_count,
                 'debug_region_count': len(debug), 'debug_references': sum(len(x[2]) for x in debug),
                 'map_data_rows': declared, 'map_id_asset_groups': groups,

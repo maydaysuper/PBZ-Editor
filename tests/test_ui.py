@@ -564,3 +564,33 @@ def test_persisted_language_used_at_startup(application, tmp_path, monkeypatch):
         w.deleteLater()
         ui.set_language('zh-CN')
         QCoreApplication.sendPostedEvents(None, QEvent.Type.DeferredDelete)
+
+
+def test_incompatible_category_disables_its_controls_only(opened):
+    opened.session.compatibility = {'executable': 'changed',
+        'available_categories': ['goods', 'weapon', 'phantom', 'accessory', 'appearance'],
+        'warnings': ['地图分类暂不可用，仍可搜索和按类别查找物品。']}
+    opened.refresh_all()
+    assert opened.compatibility_label.isVisible()
+    assert '药品' in opened.compatibility_label.text() and '地图分类暂不可用' in opened.compatibility_label.text()
+    select_bag(opened, 'medicine', 'Hulu')
+    assert not opened.editor.isEnabled() and not opened.remove_button.isEnabled()
+    select_bag(opened, 'goods', 'Material')
+    assert opened.editor.isEnabled() and opened.remove_button.isEnabled()
+    opened.quantity_spin.setValue(9)
+    assert opened.apply_button.isEnabled()
+    opened.language_combo.setCurrentIndex(opened.language_combo.findData('en-US'))
+    assert 'Read-only categories' in opened.compatibility_label.text()
+    assert 'Map filters are unavailable' in opened.compatibility_label.text()
+    assert opened.owned[('goods', 'material')]['quantity'] == 9
+
+
+def test_future_format_read_only_disables_all_edit_controls(opened):
+    opened.session.source = opened.session.source[:4]+b'\x04'+opened.session.source[5:]
+    opened.refresh_all()
+    choose(opened, 'AC_ResistRanged')
+    assert '只读模式' in opened.compatibility_label.text()
+    assert not opened.add_button.isEnabled() and not opened.advanced_action.isEnabled()
+    select_bag(opened, 'goods', 'Material')
+    assert not opened.editor.isEnabled() and not opened.remove_button.isEnabled()
+    assert not opened.apply_button.isEnabled()

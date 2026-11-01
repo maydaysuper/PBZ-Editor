@@ -34,7 +34,8 @@ jobs:
         shell: pwsh
         run: |
           $env:PBZ_EDITOR_DATA_DIR = Join-Path $env:RUNNER_TEMP 'pbz-empty-user-data'
-          $p = Start-Process -FilePath .\dist\v0.2.0\PBZ-Editor\PBZ-Editor.exe -ArgumentList '--smoke-empty --language en-US' -PassThru -WindowStyle Hidden
+          $version = (& .\.venv\Scripts\python.exe -c 'from pbz_editor import __version__; print(__version__)').Trim()
+          $p = Start-Process -FilePath ".\dist\v$version\PBZ-Editor\PBZ-Editor.exe" -ArgumentList '--smoke-empty --language en-US' -PassThru -WindowStyle Hidden
           if (-not $p.WaitForExit(30000)) { throw 'Packaged startup timeout' }
           if ($p.ExitCode -ne 0) { throw 'Packaged startup failed' }
       - name: Upload reviewed build archives
@@ -42,6 +43,6 @@ jobs:
         with:
           name: PBZ-Editor-windows-x64
           path: |
-            dist/v0.2.0/*.zip
-            dist/v0.2.0/SHA256SUMS.txt
+            dist/v*/*.zip
+            dist/v*/SHA256SUMS.txt
           if-no-files-found: error
