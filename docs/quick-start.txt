@@ -1,0 +1,17 @@
+PBZ Editor 0.2.0 — 开始使用
+English: START-HERE.en.txt
+
+1. 完整解压运行包，保留 EXE 及 _internal 文件夹。
+2. 退出游戏，双击 PBZ-Editor.exe；不需要 Python 或管理员权限。
+3. 自动识别游戏与存档；未找到时选择含 platform/steam/PBZ.exe 的游戏根目录。
+4. 找物品 → 添加到背包 → 右侧调整数值 → 保存存档。
+5. 顶部可以切换简体中文 / English。保存前自动备份，顶部“备份”可查看和恢复。
+
+适配：Windows x64，Steam build 26266538。当前为预览版。
+首次启动从本机游戏准备清单和图标；请等待准备完成。
+默认数据：%LOCALAPPDATA%\PBZ-Editor；升级时直接使用完整新版文件夹。
+便携模式：EXE 旁创建空文件 portable.flag，保留相邻 .local 数据目录。
+药品次数受游戏补充规则影响；目录覆盖不代表每件物品的游戏效果已验证。
+
+下载和反馈：https://github.com/qry6868/PBZ-Editor
+完整说明：README.md / README.en.md

@@ -1,0 +1,17 @@
+PBZ Editor 0.2.0 — Start here
+简体中文: START-HERE.txt
+
+1. Extract the complete archive. Keep the EXE and _internal folder together.
+2. Exit the game and run PBZ-Editor.exe. No Python or administrator rights needed.
+3. Game and save detection is automatic. If needed, select the game root containing platform/steam/PBZ.exe.
+4. Find an item → Add to backpack → Adjust values on the right → Save.
+5. Switch 简体中文 / English at the top. Backups are created before saving; use Backups to view or restore them.
+
+Compatibility: Windows x64, Steam build 26266538. This is a preview release.
+The first launch prepares metadata and icons from your installed game. Wait for preparation to finish.
+Default data: %LOCALAPPDATA%\PBZ-Editor. Upgrade by extracting a complete new version.
+Portable mode: create an empty portable.flag beside the EXE, and keep the adjacent .local data folder.
+Medicine uses follow the game's refill rules. Catalog coverage does not verify every item's in-game behavior.
+
+Downloads and feedback: https://github.com/qry6868/PBZ-Editor
+Full guide: README.en.md / README.md

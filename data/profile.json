@@ -1,0 +1,19 @@
+{
+  "schema": 1,
+  "build": "26266538",
+  "exe_sha256": "7b4fcd286a350780faf0824d73aa150b21cbf1bccde883e6a96386cbe09973b4",
+  "resources": {
+    "ProjectPBZ/Content/PBZContent/DataTable/Item/DT_InventoryData.uasset": "9bd49f00745d39b08dde6fa3ef8ce1b7020baa00b5e1c5842293625facf6ab65",
+    "ProjectPBZ/Content/PBZContent/DataTable/UI/DT_WeaponData.uasset": "5d1382c76b59f6c56ffe53a3e07b1cb6888edb9b74de3cc10b9cea3ecc5f6899",
+    "ProjectPBZ/Content/PBZContent/DataTable/UI/DT_ShaqiWeaponData.uasset": "fbd6669b362a13b7791516a2e78b84ba7965d87620ac77865202e73a8ba83be4",
+    "ProjectPBZ/Content/PBZContent/DataTable/UI/DT_Accessory.uasset": "8f07c88e320a580030139d1646804be2056d536f5e69c08dccd81c40832bb9c3",
+    "ProjectPBZ/Content/PBZContent/DataTable/UI/DT_MedicineTable.uasset": "34715f37037df49fe9040df8557329aaa5aa5d8d4c63e969b7beee898edc0e5a",
+    "ProjectPBZ/Content/PBZContent/DataTable/UI/DT_PBZAppearanceTable.uasset": "108b5317ab907494ed26ec4980a7848f4a893240238b9181257e4ee04cddd954",
+    "ProjectPBZ/Content/PBZContent/Maps/DT_MapItemData.uasset": "64010746ef71ac987d9261c4251d733bacc4780feb44b5dbbe55c33bbe5624d1",
+    "ProjectPBZ/Content/PBZContent/DataTable/UI/DT_MapData.uasset": "3077a36d38e5ca796265f68bbf789f36b6e27aa250c6bd2264f6f613e0c85baa",
+    "ProjectPBZ/Content/PBZContent/UI/InGame/Map/DA_MapIDAsset.uasset": "08c28b715674bdeae1df52c7ffddba662b7d8b2676507320c64c3aa583c3f0c7"
+  },
+  "catalog_entries": 844,
+  "editable_entries": 799,
+  "map_groups_sha256": "10d756db2ea2821eb273faa2f949817e89683eacf9c5c6ed77f20a197cc8faa9"
+}

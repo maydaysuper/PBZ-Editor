@@ -1,0 +1,20 @@
+[package]
+name = "pbz-codec"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+publish = false
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+oozextract = "=0.5.7"
+
+[patch.crates-io]
+oozextract = { path = "vendor/oozextract" }
+
+[profile.release]
+lto = true
+strip = true
+codegen-units = 1
