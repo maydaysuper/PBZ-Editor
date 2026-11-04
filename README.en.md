@@ -2,7 +2,7 @@
 
 [简体中文](README.md) | English
 
-[![Windows build](https://github.com/qry6868/PBZ-Editor/actions/workflows/build.yml/badge.svg)](https://github.com/qry6868/PBZ-Editor/actions/workflows/build.yml)
+[![Windows build](https://github.com/maydaysuper/PBZ-Editor/actions/workflows/build.yml/badge.svg)](https://github.com/maydaysuper/PBZ-Editor/actions/workflows/build.yml)
 
 Offline Windows save editor · Free and open source (MIT) · Chinese / English
 
@@ -10,9 +10,9 @@ This started with one missed item: **Arrowward**.
 
 The plan was to get it back. That grew into a small editor with item search, map filters and icons from the game. Find something, add it to your inventory, adjust its quantity or upgrade level, then save. You can recover a missed piece of gear or try another weapon without leaving the window.
 
-**[Download the Windows app](https://github.com/qry6868/PBZ-Editor/releases/download/v0.3.0/PBZ-Editor-0.3.0-windows-x64.zip)** · [Release and checksums](https://github.com/qry6868/PBZ-Editor/releases/tag/v0.3.0) · [What's new](docs/releases/0.3.0.en.md)
+**[Download the Windows app](https://github.com/maydaysuper/PBZ-Editor/releases/download/v0.3.1/PBZ-Editor-0.3.1-windows-x64.zip)** · [Release and checksums](https://github.com/maydaysuper/PBZ-Editor/releases/tag/v0.3.1) · [What's new](docs/releases/0.3.1.en.md)
 
-The current release is **v0.3.0 preview** for Windows x64. Steam build **26266538** is the tested reference. After a game update, the editor checks the save and item data automatically; compatible features remain available rather than blocking an entire build number.
+The current release is **v0.3.1 preview** for Windows x64. Steam build **26266538** is the tested reference. After a game update, the editor checks the save and item data automatically; compatible features remain available rather than blocking an entire build number. A category whose numeric layout cannot be confirmed stays view-only, so unknown structures are not written.
 
 ## A quick look
 
@@ -32,7 +32,7 @@ These are captures of the actual app using a generated demo inventory. The file 
 
 ## Give it a try
 
-1. Download `PBZ-Editor-0.3.0-windows-x64.zip`, **extract the whole archive**, and exit the game.
+1. Download `PBZ-Editor-0.3.1-windows-x64.zip`, **extract the whole archive**, and exit the game.
 2. Run `PBZ-Editor.exe`. It usually finds the game and save for you. If it doesn't, choose them manually; if several accounts appear, pick your own progress.
 3. Search the item library by name, or browse by category and map. Select an item and click **Add to inventory**.
 4. Adjust its quantity or level on the right, then click **Save changes** in the top corner.
