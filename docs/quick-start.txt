@@ -1,4 +1,4 @@
-PBZ Editor 0.3.0 — 开始使用
+PBZ Editor 0.3.1 — 开始使用
 English: START-HERE.en.txt
 
 1. 完整解压运行包，保留 EXE 及 _internal 文件夹。
