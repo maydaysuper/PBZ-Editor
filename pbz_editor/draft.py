@@ -6,11 +6,32 @@ def item_key(item):
     return item['category'], item['id'].casefold()
 
 
+def _snap_soul(item):
+    """Soul-forge state for weapons and phantoms, or None for other items.
+
+    A missing AlreadySnapSoul matches unforged (weapon 0, phantom false) so a
+    quantity or level edit is not mistaken for a soul change.
+    """
+    category = item.get('category')
+    if category not in ('weapon', 'phantom'):
+        return None
+    value = (item.get('record') or {}).get('AlreadySnapSoul')
+    if category == 'phantom':
+        return bool(value)
+    if isinstance(value, bool) or not isinstance(value, int):
+        return 0
+    return value
+
+
 def signature(item):
     if item is None:
         return None
-    return (item.get('quantity', 1), item.get('level', 0),
+    base = (item.get('quantity', 1), item.get('level', 0),
             tuple(item.get('equipped_slots', [])))
+    soul = _snap_soul(item)
+    if soul is None:
+        return base
+    return (*base, soul)
 
 
 class InventoryDraft:
@@ -52,6 +73,8 @@ class InventoryDraft:
 
         Equipment changes precede removals so a replaced medicine may then be
         removed safely. Normalized counts are included in the final targets.
+        Removing a weapon or phantom and adding it back in this draft is a new
+        item: the folded set carries soul_level 0 so AlreadySnapSoul is cleared.
         """
         operations = []
         for key in sorted(self.changed_keys):
@@ -72,6 +95,10 @@ class InventoryDraft:
                 if key[0] == 'medicine':
                     slots = after.get('equipped_slots', [])
                     op['equip_slot'] = slots[0] if len(slots) == 1 else 'keep' if slots else 'none'
+                if before and key[0] in ('weapon', 'phantom'):
+                    after_soul = _snap_soul(after)
+                    if after_soul != _snap_soul(before):
+                        op['soul_level'] = int(after_soul)
             operations.append(op)
         operations.sort(key=lambda op: (op['action'] == 'remove', op['category'] != 'medicine'))
         return operations
