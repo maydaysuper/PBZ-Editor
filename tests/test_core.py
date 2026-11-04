@@ -161,6 +161,44 @@ class LosslessTests(unittest.TestCase):
         with self.assertRaises(EditorError):
             edit_inventory(raw,[{'action':'add','id':'UnknownMedicine','category':'medicine','quantity':1}])
 
+    def test_explicit_soul_level_overwrites_and_plain_set_keeps_it(self):
+        raw = (
+            b'{"PBZGameSystem":{"CycleCount":2},"Inventory":{"MainWeaponInfos":{"Blade":'
+            b'{"WeaponLevel":4,"AlreadySnapSoul":4,"DateTime":"2020.01.01-00.00.00","KeepMe":7}},'
+            b'"ShaChiWeaponInfo":{"Hook":{"ShaChiWeaponLevel":3,"AlreadySnapSoul":true,"Stamp":"keep"}}}}'
+        )
+        edited, _ = edit_inventory(raw, [{'action': 'set', 'id': 'Blade', 'category': 'weapon', 'level': 1}])
+        blade = json.loads(edited)['Inventory']['MainWeaponInfos']['Blade']
+        self.assertEqual(blade['AlreadySnapSoul'], 4)
+        self.assertEqual(blade['WeaponLevel'], 2)
+        self.assertEqual(blade['DateTime'], '2020.01.01-00.00.00')
+        self.assertEqual(blade['KeepMe'], 7)
+        edited, _ = edit_inventory(raw, [{'action': 'set', 'id': 'Hook', 'category': 'phantom', 'level': 1}])
+        hook = json.loads(edited)['Inventory']['ShaChiWeaponInfo']['Hook']
+        self.assertIs(hook['AlreadySnapSoul'], True)
+        self.assertEqual(hook['Stamp'], 'keep')
+
+        edited, _ = edit_inventory(raw, [{'action': 'set', 'id': 'Blade', 'category': 'weapon', 'level': 3, 'soul_level': 0}])
+        blade = json.loads(edited)['Inventory']['MainWeaponInfos']['Blade']
+        self.assertEqual(blade['AlreadySnapSoul'], 0)
+        self.assertNotIsInstance(blade['AlreadySnapSoul'], bool)
+        self.assertEqual(blade['WeaponLevel'], 4)
+        self.assertEqual(blade['DateTime'], '2020.01.01-00.00.00')
+        self.assertEqual(blade['KeepMe'], 7)
+        edited, _ = edit_inventory(raw, [{'action': 'set', 'id': 'Hook', 'category': 'phantom', 'level': 2, 'soul_level': 0}])
+        hook = json.loads(edited)['Inventory']['ShaChiWeaponInfo']['Hook']
+        self.assertEqual(hook['AlreadySnapSoul'], 0)
+        self.assertNotIsInstance(hook['AlreadySnapSoul'], bool)
+        self.assertEqual(hook['ShaChiWeaponLevel'], 3)
+        self.assertEqual(hook['Stamp'], 'keep')
+        edited, _ = edit_inventory(raw, [{'action': 'set', 'id': 'Hook', 'category': 'phantom', 'level': 2, 'soul_tempered': False}])
+        self.assertIs(json.loads(edited)['Inventory']['ShaChiWeaponInfo']['Hook']['AlreadySnapSoul'], False)
+
+        edited, _ = edit_inventory(raw, [{'action': 'remove', 'id': 'Blade', 'category': 'weapon'}])
+        inventory = json.loads(edited)['Inventory']
+        self.assertNotIn('Blade', inventory['MainWeaponInfos'])
+        self.assertIn('Hook', inventory['ShaChiWeaponInfo'])
+
 
 class SessionTests(unittest.TestCase):
     def setUp(self):

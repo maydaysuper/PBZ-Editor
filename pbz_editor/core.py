@@ -480,12 +480,20 @@ def _edit_inventory_small(raw: bytes, operations: list[dict]) -> tuple[bytes, li
         elif category == "weapon":
             record.update(WeaponLevel=level + 1, HasUIRedPoint=True)
             record.setdefault("DateTime", timestamp)
-            record.setdefault("AlreadySnapSoul", _int(op.get("soul_level", 0), "炼魂等级", maximum=99))
+            if "soul_level" in op:
+                record["AlreadySnapSoul"] = _int(op["soul_level"], "炼魂等级", maximum=99)
+            else:
+                record.setdefault("AlreadySnapSoul", 0)
             record.setdefault("AcquiredCycle", cycle)
             record.setdefault("FirstAcquiredCycle", cycle)
         elif category == "phantom":
             record.update(ShaChiWeaponLevel=level + 1, HasUIRedPoint=True, DirtyTime=timestamp)
-            record.setdefault("AlreadySnapSoul", bool(op.get("soul_tempered", False)))
+            if "soul_level" in op:
+                record["AlreadySnapSoul"] = _int(op["soul_level"], "炼魂等级", maximum=99)
+            elif "soul_tempered" in op:
+                record["AlreadySnapSoul"] = bool(op["soul_tempered"])
+            else:
+                record.setdefault("AlreadySnapSoul", False)
             record.setdefault("AcquiredCycle", cycle)
             record.setdefault("FirstAcquiredCycle", cycle)
         elif category == "accessory":
