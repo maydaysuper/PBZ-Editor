@@ -23,6 +23,25 @@ def _snap_soul(item):
     return value
 
 
+def _soul_only_change(before, after):
+    """True when the only difference is an unforged AlreadySnapSoul.
+
+    Remove-and-add rebuilds the record, so that stays a normal set. A dedicated
+    clear must not be folded into that path, which would rewrite other fields.
+    """
+    if before.get('category') not in ('weapon', 'phantom') or after.get('category') not in ('weapon', 'phantom'):
+        return False
+    if _snap_soul(after) not in (0, False) or _snap_soul(after) == _snap_soul(before):
+        return False
+    if (before['quantity'], before['level'], before.get('equipped_slots', [])) != (
+            after['quantity'], after['level'], after.get('equipped_slots', [])):
+        return False
+    left, right = dict(before.get('record') or {}), dict(after.get('record') or {})
+    left.pop('AlreadySnapSoul', None)
+    right.pop('AlreadySnapSoul', None)
+    return left == right
+
+
 def signature(item):
     if item is None:
         return None
@@ -75,6 +94,7 @@ class InventoryDraft:
         removed safely. Normalized counts are included in the final targets.
         Removing a weapon or phantom and adding it back in this draft is a new
         item: the folded set carries soul_level 0 so AlreadySnapSoul is cleared.
+        A change that touches only AlreadySnapSoul is clear_soul, not that fold.
         """
         operations = []
         for key in sorted(self.changed_keys):
@@ -87,6 +107,9 @@ class InventoryDraft:
             if not after and key[0] == 'medicine' and before.get('equipped_slots'):
                 operations.append({**op, 'action': 'set', 'quantity': 0,
                                    'level': before['level'], 'equip_slot': 'none'})
+            if after and before and _soul_only_change(before, after):
+                operations.append({**op, 'action': 'clear_soul'})
+                continue
             if after:
                 op.update(quantity=after['quantity'], level=after['level'])
                 for field in ('max_level', 'base_capacity'):

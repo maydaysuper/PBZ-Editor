@@ -4,7 +4,7 @@ from PySide6.QtWidgets import QMenu
 from PySide6.QtGui import QShortcut, QKeySequence, QPixmap, QPainter
 from PySide6.QtCore import QSize
 import threading
-from .draft import InventoryDraft, item_key
+from .draft import InventoryDraft, item_key, _snap_soul
 from .paths import resolve_game
 from . import __version__
 
@@ -313,6 +313,9 @@ class EditorWindow(QMainWindow):
         self.backpack_preview = self._preview_label()
         bag_heading.addWidget(self.backpack_preview)
         bag_heading.addWidget(self.bag_name, 1)
+        self.clear_soul_button = button(tr('清除铸魂'), self.clear_soul)
+        self.clear_soul_button.setObjectName('quiet')
+        bag_heading.addWidget(self.clear_soul_button)
         self.remove_button = button(tr('移出背包'), self.remove_selected)
         self.remove_button.setObjectName('quiet')
         bag_heading.addWidget(self.remove_button)
@@ -1026,6 +1029,15 @@ class EditorWindow(QMainWindow):
                 op['quantity'] = 1
         self._stage(op, key)
 
+    def clear_soul(self):
+        key = self.bag_selected
+        if not self.draft or not key or key not in self.owned or self.busy or self.session.read_only:
+            return
+        item = self.owned[key]
+        if _snap_soul(item) in (None, 0, False):
+            return
+        self._stage({'action': 'clear_soul', 'id': item['id'], 'category': item['category']})
+
     def remove_selected(self):
         if self.bag_selected and self.bag_selected in self.owned:
             item = self.owned[self.bag_selected]
@@ -1072,6 +1084,9 @@ class EditorWindow(QMainWindow):
         selected_editable = bool(ready and item and self.session.can_edit(self.slot_name(), item['category']))
         self.add_button.setEnabled(ready and bool(item and item.get('supported', True)) and (present or selected_editable))
         bag_editable = bool(ready and self.bag_selected and self.session.can_edit(self.slot_name(), self.bag_selected[0]))
+        selected = self.owned.get(self.bag_selected) if ready and self.bag_selected else None
+        self.clear_soul_button.setEnabled(bool(
+            selected and not self.session.read_only and _snap_soul(selected) not in (None, 0, False)))
         self.remove_button.setEnabled(bag_editable and self.bag_selected in self.owned)
         self.editor.setEnabled(bag_editable)
         self.advanced_action.setEnabled(ready and any(self.session.can_edit(self.slot_name(), c) for c in CATEGORIES if c != 'all'))

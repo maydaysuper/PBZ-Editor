@@ -585,6 +585,26 @@ def test_incompatible_category_disables_its_controls_only(opened):
     assert opened.owned[('goods', 'material')]['quantity'] == 9
 
 
+def test_view_only_weapon_can_clear_soul_while_remove_stays_disabled(opened):
+    blade = opened.session._entry('AutoSave0')['json']['Inventory']['MainWeaponInfos']['IronBlade']
+    blade['WeaponLevel'] = True
+    blade['AlreadySnapSoul'] = 4
+    opened.session.compatibility = {
+        'executable': 'changed',
+        'available_categories': ['goods', 'weapon', 'phantom', 'accessory', 'medicine', 'appearance'],
+        'warnings': [],
+    }
+    opened._new_draft(opened.slot_name())
+    assert not opened.session.can_edit('AutoSave0', 'weapon')
+    assert '主武器' in opened.compatibility_label.text()
+    select_bag(opened, 'weapon', 'IronBlade')
+    assert opened.bag_note.text() == '该类别的数值结构已变化，仅可查看。'
+    assert opened.clear_soul_button.isEnabled() and opened.clear_soul_button.text() == '清除铸魂'
+    assert not opened.remove_button.isEnabled() and not opened.editor.isEnabled()
+    select_bag(opened, 'goods', 'Material')
+    assert not opened.clear_soul_button.isEnabled() and opened.remove_button.isEnabled()
+
+
 def test_future_format_read_only_disables_all_edit_controls(opened):
     opened.session.source = opened.session.source[:4]+b'\x04'+opened.session.source[5:]
     opened.refresh_all()

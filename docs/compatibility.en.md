@@ -9,7 +9,7 @@ There is no version selector. Each time a save opens, the editor checks decrypti
 | EXE differs from the reference | Locate candidate keys and authenticate them against the save directory; never execute the EXE or reject solely by build number |
 | Key material moves or changes | Perform a bounded search inside recognized PE sections; accept only an authenticated key |
 | Item values, text or entry counts change | Check property layouts, row counts, IDs and required metadata; use current values when checks pass |
-| One category changes layout or loses resources | Stop editing that category while retaining other validated categories |
+| One category changes layout or loses resources | Stop add, edit, and remove for that category while retaining other validated categories. A forged main or phantom weapon can still clear only AlreadySnapSoul |
 | Map parsing fails | Disable map filtering; retain search and category browsing |
 | Text or some icons are unavailable | Keep original names or IDs; icon failure does not block editing |
 | A container version changes but the old layout still parses completely | Read-only; disable edits, writeback and backup restore |
