@@ -14,7 +14,7 @@ rustup override set 1.99.1-x86_64-pc-windows-gnu
 .\tools\build_release.ps1 -Zip
 ```
 
-Output: the Windows ZIP, source ZIP and SHA256SUMS.txt under `dist/v0.3.3/`. The runtime includes Python, Qt and an open-source decoder. No proprietary Oodle DLL is required.
+Output: the Windows ZIP, source ZIP and SHA256SUMS.txt under `dist/v0.3.4/`. The runtime includes Python, Qt and an open-source decoder. No proprietary Oodle DLL is required.
 
 Run source: `.\.venv\Scripts\python.exe -m pbz_editor.app`. Optional flags: `--language en-US` or `--language zh-CN`. Set `PBZ_EDITOR_DATA_DIR` for isolated test data.
 

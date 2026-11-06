@@ -14,7 +14,7 @@ rustup override set 1.99.1-x86_64-pc-windows-gnu
 .\tools\build_release.ps1 -Zip
 ```
 
-输出：`dist/v0.3.3/` 下的 Windows ZIP、源码 ZIP 和 SHA256SUMS.txt。运行包内置 Python、Qt 和开放源码解码器，不需要专有 Oodle DLL。
+输出：`dist/v0.3.4/` 下的 Windows ZIP、源码 ZIP 和 SHA256SUMS.txt。运行包内置 Python、Qt 和开放源码解码器，不需要专有 Oodle DLL。
 
 源码启动：`.\.venv\Scripts\python.exe -m pbz_editor.app`。可加 `--language en-US` 或 `--language zh-CN`。设置 `PBZ_EDITOR_DATA_DIR` 可指定独立测试数据目录。
 

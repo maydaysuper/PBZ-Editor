@@ -879,6 +879,8 @@ class SaveSession:
     def _edit_plan(self, slot: str, operations: list[dict]):
         if not isinstance(operations,list) or len(operations)>5000 or any(not isinstance(op,dict) for op in operations):
             raise EditorError('操作清单无效或超过 5000 条。')
+        quest_ops = [op for op in operations if op.get('action') == 'complete_quick_hand']
+        operations = [op for op in operations if op.get('action') != 'complete_quick_hand']
         entry = self._entry(slot)
         for operation in operations:
             category = operation.get('category')
@@ -911,6 +913,26 @@ class SaveSession:
             if modified != advanced['raw']:
                 replacements['__Advanced__'] = modified
             changes.extend(global_changes)
+        if quest_ops:
+            if self.read_only:
+                raise EditorError('此存档格式尚未验证写入，当前仅可查看。')
+            from .quick_hand import apply_quick_hand
+            current = replacements.get(slot, entry['raw'])
+            achievement = next((item for item in self.entries if item['name'] == '__Achievements__'), None)
+            achievement_raw = replacements.get('__Achievements__', None if achievement is None else achievement['raw'])
+            grant_reward = self.category_issue(slot, 'accessory') is None
+            for operation in quest_ops:
+                current, achievement_raw, quest_changes = apply_quick_hand(
+                    current, achievement_raw, operation.get('chapter'),
+                    dirty_time=operation.get('dirty_time') or _now(), grant_reward=grant_reward)
+                for change in quest_changes:
+                    change.setdefault('slot', slot)
+                    change.setdefault('scope', 'slot')
+                changes.extend(quest_changes)
+            if current != entry['raw']:
+                replacements[slot] = current
+            if achievement is not None and achievement_raw != achievement['raw']:
+                replacements['__Achievements__'] = achievement_raw
         return replacements,changes
 
     def _candidate(self, slot: str, operations: list[dict], compression="preserve"):
@@ -928,10 +950,13 @@ class SaveSession:
 
     def preview(self, slot: str, operations: list[dict]) -> dict:
         replacements,changes = self._edit_plan(slot,operations)
+        note = "普通物品编辑所选进度槽，完整服装编辑账号全局衣柜；不会同步剧情、NPC 状态或成就。"
+        if any(change.get('action') == 'complete_quick_hand' for change in changes):
+            note = "写入所选妙手空空章节的任务分支和剧情标记；饰品可写且背包没有奖励时补上奖励。五个区域都完成才写入成就 ACH_039。Steam 弹窗不由存档单独保证。"
         return {"slot": slot, "changes": changes, "operation_count": len(changes), "changed": bool(replacements),
                 'affected_slots':list(replacements), 'has_global_changes':'__Advanced__' in replacements,
                 "original_sha256": self.source_sha256, "unrelated_slots_preserved": True,
-                "note": "普通物品编辑所选进度槽，完整服装编辑账号全局衣柜；不会同步剧情、NPC 状态或成就。"}
+                "note": note}
 
     def project(self, slot: str, operations: list[dict]):
         """Return a validated in-memory view using the same adapters as save.

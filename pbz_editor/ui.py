@@ -62,7 +62,12 @@ class EditorWindow(QMainWindow):
 
     @property
     def pending(self):
-        return self.draft.operations() if self.draft else []
+        if not self.draft:
+            return []
+        return [*self.draft.operations(), *self.draft.quest_ops]
+
+    def _unsaved(self):
+        return bool(self.draft and (self.draft.changed_keys or self.draft.quest_ops))
 
     @property
     def owned(self):
@@ -97,6 +102,11 @@ class EditorWindow(QMainWindow):
         self.more_menu = QMenu(self)
         self.more_menu.addAction(tr('另存为副本…'), self.export_save)
         self.more_menu.addAction(tr('放弃全部修改'), self.discard)
+        self.more_menu.addSeparator()
+        self.village_quick_hand = self.more_menu.addAction(tr('完成陆家村的妙手空空'), lambda: self.complete_quick_hand('village'))
+        self.estate_quick_hand = self.more_menu.addAction(tr('完成戏梦山庄的妙手空空'), lambda: self.complete_quick_hand('estate'))
+        for action in (self.village_quick_hand, self.estate_quick_hand):
+            action.setToolTip(tr('把这一段标成已交付，并在饰品可写时补上缺少的奖励。妙手拾遗要五个区域都完成才写入。请先退出游戏，再点保存。'))
         self.more_menu.addSeparator()
         self.advanced_action = self.more_menu.addAction(tr('通过内部 ID 添加…'), self.advanced_add)
         self.internal_action = self.more_menu.addAction(tr('显示内部条目与编号'))
@@ -589,7 +599,7 @@ class EditorWindow(QMainWindow):
 
     def _resolve_changes(self, continuation):
         self._finish_edit()
-        if self.draft and self.draft.changed_keys:
+        if self._unsaved():
             answer = QMessageBox.question(self, tr('背包尚未保存'), tr('保存当前背包的修改吗？'),
                 QMessageBox.StandardButton.Save | QMessageBox.StandardButton.Discard | QMessageBox.StandardButton.Cancel,
                 QMessageBox.StandardButton.Cancel)
@@ -1030,6 +1040,24 @@ class EditorWindow(QMainWindow):
                 op['quantity'] = 1
         self._stage(op, key)
 
+    def complete_quick_hand(self, chapter):
+        if not self.draft or self.busy or not self.session:
+            return
+        if self.session.read_only:
+            QMessageBox.warning(self, tr('无法修改'), tr('此存档格式尚未验证写入，当前仅可查看。'))
+            return
+        labels = {'village': tr('陆家村的妙手空空'), 'estate': tr('戏梦山庄的妙手空空')}
+        try:
+            changed = self.draft.stage({'action': 'complete_quick_hand', 'chapter': chapter})
+        except ValueError as error:
+            QMessageBox.warning(self, tr('无法修改'), str(error))
+            return
+        self.refresh_all()
+        if changed:
+            self.status.setText(tr('{0}已在预览中标为完成，尚未写入存档。保存前会自动备份。妙手拾遗只在五个区域都完成时写入 ACH_039；Steam 弹窗不一定会在读档时出现。', labels[chapter]))
+        else:
+            self.status.setText(tr('{0}已经是完成状态，没有新的改动。', labels[chapter]))
+
     def clear_soul(self):
         key = self.bag_selected
         if not self.draft or not key or key not in self.owned or self.busy or self.session.read_only:
@@ -1071,7 +1099,7 @@ class EditorWindow(QMainWindow):
         changed = set(self.draft.changed_keys) if self.draft else set()
         if self._typing and self.bag_selected:
             changed.add(self.bag_selected)
-        count = len(changed)
+        count = len(changed) + (len(self.draft.quest_ops) if self.draft else 0)
         self.changes_label.setText(tr('有 {0} 处修改', count) if count else tr('已保存') if self.draft else tr('尚未打开存档'))
         dirty = bool(count)
         if self.changes_label.property('dirty') != dirty:
@@ -1079,6 +1107,10 @@ class EditorWindow(QMainWindow):
             self.changes_label.style().unpolish(self.changes_label)
             self.changes_label.style().polish(self.changes_label)
         self.apply_button.setEnabled(ready and bool(count))
+        quick_hand_ready = ready and bool(self.session) and not self.session.read_only
+        if hasattr(self, 'village_quick_hand'):
+            self.village_quick_hand.setEnabled(quick_hand_ready)
+            self.estate_quick_hand.setEnabled(quick_hand_ready)
         self.undo_button.setEnabled(ready and bool(self.draft.history or self._typing))
         item = self.selected_item
         present = bool(item and item_key(item) in self.owned and item['category'] in UNIQUE | {'medicine'})
@@ -1133,7 +1165,7 @@ class EditorWindow(QMainWindow):
         if self.busy or not self.draft:
             return
         self._finish_edit()
-        if not self.draft.changed_keys:
+        if not self._unsaved():
             if after:
                 after()
             return
@@ -1266,7 +1298,7 @@ class EditorWindow(QMainWindow):
         if self.busy:
             event.ignore()
             self.status.setText(tr('正在处理存档，请稍候再关闭。'))
-        elif self.draft and self.draft.changed_keys:
+        elif self._unsaved():
             answer = QMessageBox.question(self, tr('背包尚未保存'), tr('保存当前背包的修改吗？'),
                 QMessageBox.StandardButton.Save | QMessageBox.StandardButton.Discard | QMessageBox.StandardButton.Cancel,
                 QMessageBox.StandardButton.Cancel)

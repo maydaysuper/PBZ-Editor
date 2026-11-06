@@ -298,5 +298,19 @@
   "压缩数据大小超出支持范围。": "Compressed data exceeds the supported size.",
   "压缩数据未通过内置解码校验，文件未写入。": "Compressed data failed built-in decoder validation. No file was written.",
   "存储块未通过往返校验。": "Stored blocks failed roundtrip validation.",
-  "空数据块包含了多余内容。": "An empty data block contains extra content."
+  "空数据块包含了多余内容。": "An empty data block contains extra content.",
+  "完成陆家村的妙手空空": "Complete Village of Lu Quick Hand",
+  "完成戏梦山庄的妙手空空": "Complete Mirage Estate Quick Hand",
+  "陆家村的妙手空空": "Village of Lu Quick Hand",
+  "戏梦山庄的妙手空空": "Mirage Estate Quick Hand",
+  "把这一段标成已交付，并在饰品可写时补上缺少的奖励。妙手拾遗要五个区域都完成才写入。请先退出游戏，再点保存。": "Marks this chapter delivered and adds the reward accessory when accessories can be written and it is missing. Lost and Found is written only after all five regions are complete. Exit the game, then save.",
+  "{0}已在预览中标为完成，尚未写入存档。保存前会自动备份。妙手拾遗只在五个区域都完成时写入 ACH_039；Steam 弹窗不一定会在读档时出现。": "{0} is marked complete in the preview and is not saved yet. Saving creates a backup first. Lost and Found (ACH_039) is written only when all five regions are complete. Loading the save may not show the Steam popup.",
+  "{0}已经是完成状态，没有新的改动。": "{0} is already complete. Nothing new was changed.",
+  "存档里没有可识别的妙手空空任务记录，未写入。": "This save has no recognizable Quick Hand quest record. Nothing was written.",
+  "妙手空空缺少分支 {0}，未写入。": "Quick Hand is missing branch {0}. Nothing was written.",
+  "妙手空空分支 {0} 的任务进度长度不是 {1}，未写入。": "Quick Hand branch {0} does not have {1} task steps. Nothing was written.",
+  "存档里没有可识别的剧情标记，未写入。": "This save has no recognizable story-tag list. Nothing was written.",
+  "妙手空空的已完成分支列表无法识别，未写入。": "Quick Hand's completed-branch list is not recognizable. Nothing was written.",
+  "未知的妙手空空章节。": "Unknown Quick Hand chapter.",
+  "任务时间无效。": "The quest timestamp is invalid."
 }

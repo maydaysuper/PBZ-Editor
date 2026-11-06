@@ -689,3 +689,12 @@ def test_future_format_read_only_disables_all_edit_controls(opened):
     select_bag(opened, 'goods', 'Material')
     assert not opened.editor.isEnabled() and not opened.remove_button.isEnabled()
     assert not opened.apply_button.isEnabled()
+    assert not opened.village_quick_hand.isEnabled() and not opened.estate_quick_hand.isEnabled()
+
+
+def test_quick_hand_without_quest_record_warns_and_does_not_stage(opened, monkeypatch):
+    warnings = []
+    monkeypatch.setattr(QMessageBox, 'warning', lambda *_args: warnings.append(_args[-1]))
+    opened.complete_quick_hand('village')
+    assert warnings and '没有可识别的妙手空空' in warnings[0]
+    assert not opened.pending and not opened.apply_button.isEnabled()

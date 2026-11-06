@@ -27,6 +27,7 @@ PUBLIC_ROOTS = [
     'docs/releases/0.3.1.zh-CN.md', 'docs/releases/0.3.1.en.md', 'docs/releases/0.3.1.md',
     'docs/releases/0.3.2.zh-CN.md', 'docs/releases/0.3.2.en.md', 'docs/releases/0.3.2.md',
     'docs/releases/0.3.3.zh-CN.md', 'docs/releases/0.3.3.en.md', 'docs/releases/0.3.3.md',
+    'docs/releases/0.3.4.zh-CN.md', 'docs/releases/0.3.4.en.md', 'docs/releases/0.3.4.md',
     'docs/screenshots/01-browse.zh-CN.png', 'docs/screenshots/02-edit.zh-CN.png',
     'docs/screenshots/03-saved.zh-CN.png', 'docs/screenshots/01-browse.en-US.png',
     'docs/screenshots/02-edit.en-US.png', 'docs/screenshots/03-saved.en-US.png',
