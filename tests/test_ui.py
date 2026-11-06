@@ -586,9 +586,21 @@ def test_incompatible_category_disables_its_controls_only(opened):
 
 
 def test_view_only_weapon_can_clear_soul_while_remove_stays_disabled(opened):
-    blade = opened.session._entry('AutoSave0')['json']['Inventory']['MainWeaponInfos']['IronBlade']
-    blade['WeaponLevel'] = True
-    blade['AlreadySnapSoul'] = 4
+    raw = (
+        b'{"PBZGameSystem":{"HasGameTime":10},"Inventory":{'
+        b'"InventoryInfos":{"Material":{"CurrentAmount":3,"MaxAmount":3}},'
+        b'"MainWeaponInfos":{'
+        b'"IronBlade":{"WeaponLevel":true,"AlreadySnapSoul":4,"DateTime":"2020.01.01-00.00.00","KeepMe":7},'
+        b'"PlainSword":{"WeaponLevel":true,"AlreadySnapSoul":0,"DateTime":"2018.01.01-00.00.00"}'
+        b'},'
+        b'"ShaChiWeaponInfo":{"HuoLiuXing":{"ShaChiWeaponLevel":true,"AlreadySnapSoul":true,"Stamp":"keep"}},'
+        b'"MainWeapons":["IronBlade"],"ShaqiWeapons":["HuoLiuXing"],"CurrentMainWeaponID":"IronBlade",'
+        b'"MedicineInfos":{"Hulu":{"CurrentLevel":0,"CurrentTime":3,"MaxTime":2}},'
+        b'"TopMedicine":"Hulu","BottomMedicine":"None"}}'
+    )
+    entry = opened.session._entry('AutoSave0')
+    entry['raw'] = raw
+    entry['json'] = json.loads(raw)
     opened.session.compatibility = {
         'executable': 'changed',
         'available_categories': ['goods', 'weapon', 'phantom', 'accessory', 'medicine', 'appearance'],
@@ -596,13 +608,76 @@ def test_view_only_weapon_can_clear_soul_while_remove_stays_disabled(opened):
     }
     opened._new_draft(opened.slot_name())
     assert not opened.session.can_edit('AutoSave0', 'weapon')
+    assert not opened.session.can_edit('AutoSave0', 'phantom')
     assert '主武器' in opened.compatibility_label.text()
-    select_bag(opened, 'weapon', 'IronBlade')
+    select_bag(opened, 'weapon', 'PlainSword')
     assert opened.bag_note.text() == '该类别的数值结构已变化，仅可查看。'
-    assert opened.clear_soul_button.isEnabled() and opened.clear_soul_button.text() == '清除铸魂'
-    assert not opened.remove_button.isEnabled() and not opened.editor.isEnabled()
+    assert not opened.clear_soul_button.isEnabled() and not opened.remove_button.isEnabled()
+    select_bag(opened, 'phantom', 'HuoLiuXing')
+    assert opened.clear_soul_button.isEnabled() and not opened.remove_button.isEnabled()
+    assert '移出仍然不可用' in opened.bag_note.text() and '已铸魂' in opened.bag_note.text()
+    assert '该类别的数值结构已变化，仅可查看。' in opened.bag_note.text()
     select_bag(opened, 'goods', 'Material')
     assert not opened.clear_soul_button.isEnabled() and opened.remove_button.isEnabled()
+    select_bag(opened, 'weapon', 'IronBlade')
+    assert opened.clear_soul_button.isEnabled() and opened.clear_soul_button.text() == '清除铸魂'
+    assert '完全退出游戏' in opened.clear_soul_button.toolTip()
+    assert not opened.remove_button.isEnabled() and not opened.editor.isEnabled()
+    for op in (
+        {'action': 'remove', 'id': 'IronBlade', 'category': 'weapon'},
+        {'action': 'set', 'id': 'IronBlade', 'category': 'weapon', 'quantity': 1, 'level': 1},
+        {'action': 'add', 'id': 'IronBlade', 'category': 'weapon', 'quantity': 1, 'level': 0},
+    ):
+        with pytest.raises(EditorError, match='仅可查看'):
+            opened.session.preview('AutoSave0', [op])
+    source = opened.session.save_path.read_bytes()
+    opened.clear_soul_button.click()
+    assert opened.session.save_path.read_bytes() == source
+    assert [(op['action'], op['id']) for op in opened.pending] == [('clear_soul', 'IronBlade')]
+    assert all('soul_level' not in op and 'quantity' not in op for op in opened.pending)
+    blade = opened.owned[('weapon', 'ironblade')]['record']
+    assert blade['AlreadySnapSoul'] == 0 and not isinstance(blade['AlreadySnapSoul'], bool)
+    assert blade['WeaponLevel'] is True and blade['DateTime'] == '2020.01.01-00.00.00' and blade['KeepMe'] == 7
+    assert opened.bag_table.item(opened.bag_table.currentRow(), 2).text() == '已修改'
+    assert '铸魂已在预览中清除' in opened.bag_note.text()
+    assert opened.status.text() == '铸魂已在预览中清除，尚未写入存档。请先完全退出游戏，再点右上角保存。'
+    assert not opened.clear_soul_button.isEnabled() and not opened.remove_button.isEnabled()
+    assert not opened.editor.isEnabled() and opened.apply_button.isEnabled()
+    opened.undo()
+    assert opened.pending == []
+    assert opened.owned[('weapon', 'ironblade')]['record']['AlreadySnapSoul'] == 4
+    assert opened.clear_soul_button.isEnabled() and '已铸魂' in opened.bag_note.text()
+    assert not opened.remove_button.isEnabled()
+    opened.clear_soul_button.click()
+    opened.language_combo.setCurrentIndex(opened.language_combo.findData('en-US'))
+    QApplication.processEvents()
+    try:
+        assert opened.clear_soul_button.text() == 'Clear soul'
+        assert 'Exit the game completely' in opened.clear_soul_button.toolTip()
+        assert 'cleared in the preview' in opened.bag_note.text()
+        assert 'numeric fields have changed' in opened.bag_note.text()
+        assert not opened.clear_soul_button.isEnabled() and not opened.remove_button.isEnabled()
+    finally:
+        opened.language_combo.setCurrentIndex(opened.language_combo.findData('zh-CN'))
+        QApplication.processEvents()
+        ui.set_language('zh-CN')
+    opened.apply_save()
+    wait(opened)
+    assert opened.session._entry('AutoSave0')['raw'] == raw.replace(b'"AlreadySnapSoul":4', b'"AlreadySnapSoul":0', 1)
+    saved = opened.session._entry('AutoSave0')['json']['Inventory']
+    blade = saved['MainWeaponInfos']['IronBlade']
+    assert blade['AlreadySnapSoul'] == 0 and type(blade['AlreadySnapSoul']) is int
+    assert blade['WeaponLevel'] is True and blade['KeepMe'] == 7
+    assert saved['MainWeaponInfos']['PlainSword']['AlreadySnapSoul'] == 0
+    hook = saved['ShaChiWeaponInfo']['HuoLiuXing']
+    assert hook['AlreadySnapSoul'] is True and hook['ShaChiWeaponLevel'] is True and hook['Stamp'] == 'keep'
+    assert 'IronBlade' in saved['MainWeapons']
+    assert not opened.session.can_edit('AutoSave0', 'weapon')
+    select_bag(opened, 'weapon', 'IronBlade')
+    assert opened.bag_note.text() == '该类别的数值结构已变化，仅可查看。'
+    assert not opened.clear_soul_button.isEnabled() and not opened.remove_button.isEnabled()
+    with pytest.raises(EditorError, match='仅可查看'):
+        opened.session.preview('AutoSave0', [{'action': 'remove', 'id': 'IronBlade', 'category': 'weapon'}])
 
 
 def test_future_format_read_only_disables_all_edit_controls(opened):
