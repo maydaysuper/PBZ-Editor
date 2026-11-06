@@ -19,7 +19,7 @@ Steam build **26266538** is the reference environment. v0.3.0 checks other updat
 
 - Medicine uses follow equipment and refill rules. A previous load/save refilled 1 use to 2. The successful roundtrip verified 2 uses in an equipped slot; arbitrary counts are not guaranteed to remain unchanged.
 - Full outfits update the account-wide wardrobe. Internal hair and body meshes are not unlockable outfits. Outfit appearance has not been verified item by item.
-- Catalog and save-schema support do not verify every item's effects, quests, achievements or acquisition flow. Adding a quest item does not replay quest events. The Village of Lu and Mirage Estate Quick Hand actions write only the matched quest branches, story tags, a missing reward, and in-save achievement ACH_039. They do not rewrite the other regions' branches. The Steam popup has not been verified in-game.
+- Catalog and save-schema support do not verify every item's effects, quests, achievements or acquisition flow. Adding a quest item does not replay quest events. The Village of Lu and Mirage Estate actions only prepare that chapter for Zhang: collection stays finished and delivery is set back to in progress. They do not write the achievement slot or the other regions' branches. The in-game conversation has not been read back on this machine.
 - Some map relationships come from the game's debug region lists and establish association only. Missing relationships remain unassigned.
 - Missing English names, descriptions or map labels retain the original name or ID rather than an invented translation.
 - Automatic checks establish decryption, container and relevant field-layout compatibility. Identical layouts with changed game behavior still require that build's in-game readback tests.

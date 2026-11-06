@@ -103,10 +103,10 @@ class EditorWindow(QMainWindow):
         self.more_menu.addAction(tr('另存为副本…'), self.export_save)
         self.more_menu.addAction(tr('放弃全部修改'), self.discard)
         self.more_menu.addSeparator()
-        self.village_quick_hand = self.more_menu.addAction(tr('完成陆家村的妙手空空'), lambda: self.complete_quick_hand('village'))
-        self.estate_quick_hand = self.more_menu.addAction(tr('完成戏梦山庄的妙手空空'), lambda: self.complete_quick_hand('estate'))
+        self.village_quick_hand = self.more_menu.addAction(tr('陆家村：让小张可以交付'), lambda: self.complete_quick_hand('village'))
+        self.estate_quick_hand = self.more_menu.addAction(tr('戏梦山庄：让小张可以交付'), lambda: self.complete_quick_hand('estate'))
         for action in (self.village_quick_hand, self.estate_quick_hand):
-            action.setToolTip(tr('把这一段标成已交付，并在饰品可写时补上缺少的奖励。同时写入妙手拾遗。请先退出游戏，再点保存。'))
+            action.setToolTip(tr('不在编辑器里结算。保存后进游戏，到该区域小张藏身处和妙手小张对话，由游戏完成交付、奖励和成就。请先退出游戏。'))
         self.more_menu.addSeparator()
         self.advanced_action = self.more_menu.addAction(tr('通过内部 ID 添加…'), self.advanced_add)
         self.internal_action = self.more_menu.addAction(tr('显示内部条目与编号'))
@@ -1046,7 +1046,7 @@ class EditorWindow(QMainWindow):
         if self.session.read_only:
             QMessageBox.warning(self, tr('无法修改'), tr('此存档格式尚未验证写入，当前仅可查看。'))
             return
-        labels = {'village': tr('陆家村的妙手空空'), 'estate': tr('戏梦山庄的妙手空空')}
+        labels = {'village': tr('陆家村的妙手小张'), 'estate': tr('戏梦山庄的妙手小张')}
         try:
             changed = self.draft.stage({'action': 'complete_quick_hand', 'chapter': chapter})
         except ValueError as error:
@@ -1054,9 +1054,9 @@ class EditorWindow(QMainWindow):
             return
         self.refresh_all()
         if changed:
-            self.status.setText(tr('{0}已在预览中标为完成，尚未写入存档。保存前会自动备份。妙手拾遗 ACH_039 会写入成就槽。Steam 弹窗不保证会出现。', labels[chapter]))
+            self.status.setText(tr('{0}已准备成可以对话交付，尚未写入存档。保存后完全退出再进游戏，到该区域藏身处和他对一次话。游戏会完成这一段；其他区域都交付过时，由游戏解锁妙手拾遗。', labels[chapter]))
         else:
-            self.status.setText(tr('{0}已经是完成状态，没有新的改动。', labels[chapter]))
+            self.status.setText(tr('{0}已经可以对话交付，没有新的改动。进游戏后到藏身处和他对一次话。', labels[chapter]))
 
     def clear_soul(self):
         key = self.bag_selected
