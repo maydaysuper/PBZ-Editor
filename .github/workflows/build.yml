@@ -1,6 +1,12 @@
 name: Build Windows preview
 on:
   workflow_dispatch:
+  # One-shot: start this workflow when the caller cannot use workflow_dispatch.
+  # Delete .github/workflows/build-once and this push trigger after v0.3.3 is built.
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/build-once'
 permissions:
   contents: read
 jobs:
