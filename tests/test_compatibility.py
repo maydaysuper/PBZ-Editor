@@ -118,6 +118,8 @@ def test_new_container_version_is_viewable_but_cannot_be_edited(tmp_path, instal
     op = {'action': 'set', 'category': 'goods', 'id': 'Material', 'quantity': 5}
     with pytest.raises(core.EditorError, match='仅可查看'):
         session.apply('ManualSave0', [op])
+    with pytest.raises(core.EditorError, match='仅可查看'):
+        session.apply('ManualSave0', [{'action': 'clear_soul', 'category': 'weapon', 'id': 'Blade'}])
     assert session.save_path.read_bytes() == before and not session.backup_dir.exists()
 
 

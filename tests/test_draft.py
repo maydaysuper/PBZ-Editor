@@ -1,24 +1,30 @@
-"""Draft folding for soul forge: remove + add in one session clears AlreadySnapSoul."""
+"""Draft folding for soul forge: remove + add clears AlreadySnapSoul when editable.
+
+A view-only category can still clear soul through the dedicated clear_soul action.
+"""
 import json
 import zlib
 from pathlib import Path
 
-from pbz_editor.core import PBZSContainer, SaveSession
+import pytest
+
+from pbz_editor.core import PBZSContainer, SaveSession, EditorError
 from pbz_editor.draft import InventoryDraft
 
 
-def soul_session(tmp_path, monkeypatch):
+def soul_session(tmp_path, monkeypatch, raw=None):
     container = PBZSContainer(bytes(range(32)))
-    raw = (
-        b'{"PBZGameSystem":{"CycleCount":1,"HasGameTime":10},"Inventory":{'
-        b'"MainWeaponInfos":{'
-        b'"BronzeSword":{"WeaponLevel":1,"AlreadySnapSoul":4,"DateTime":"2020.01.01-00.00.00","KeepMe":7},'
-        b'"SpareBlade":{"WeaponLevel":6,"AlreadySnapSoul":2,"DateTime":"2019.05.05-00.00.00","KeepMe":3},'
-        b'"PlainSword":{"WeaponLevel":1,"AlreadySnapSoul":0,"DateTime":"2018.01.01-00.00.00"}'
-        b'},'
-        b'"ShaChiWeaponInfo":{"PhantomHook":{"ShaChiWeaponLevel":1,"AlreadySnapSoul":true,"Stamp":"keep"}},'
-        b'"MainWeapons":["None","None"],"ShaqiWeapons":["None"],"CurrentMainWeaponID":"None"}}'
-    )
+    if raw is None:
+        raw = (
+            b'{"PBZGameSystem":{"CycleCount":1,"HasGameTime":10},"Inventory":{'
+            b'"MainWeaponInfos":{'
+            b'"BronzeSword":{"WeaponLevel":1,"AlreadySnapSoul":4,"DateTime":"2020.01.01-00.00.00","KeepMe":7},'
+            b'"SpareBlade":{"WeaponLevel":6,"AlreadySnapSoul":2,"DateTime":"2019.05.05-00.00.00","KeepMe":3},'
+            b'"PlainSword":{"WeaponLevel":1,"AlreadySnapSoul":0,"DateTime":"2018.01.01-00.00.00"}'
+            b'},'
+            b'"ShaChiWeaponInfo":{"PhantomHook":{"ShaChiWeaponLevel":1,"AlreadySnapSoul":true,"Stamp":"keep"}},'
+            b'"MainWeapons":["None","None"],"ShaqiWeapons":["None"],"CurrentMainWeaponID":"None"}}'
+        )
     entries = []
     for name, data in [('__Advanced__', b'{"LastContinueSlot":"AutoSave0"}'), ('AutoSave0', raw)]:
         entries.append({'name': name, 'raw': data, 'json': json.loads(data), 'algorithm': 1,
@@ -100,6 +106,58 @@ def test_readd_of_unforged_weapon_is_not_dirty(tmp_path, monkeypatch):
     assert draft.stage({'id': 'PlainSword', 'category': 'weapon', 'action': 'add', 'quantity': 1, 'level': 0})
     assert ('weapon', 'plainsword') not in draft.changed_keys
     assert draft.validated_operations() == []
+
+
+def test_view_only_category_can_clear_soul(tmp_path, monkeypatch):
+    raw = (
+        b'{"PBZGameSystem":{"CycleCount":1,"HasGameTime":10},"Inventory":{'
+        b'"MainWeaponInfos":{'
+        b'"BronzeSword":{"WeaponLevel":true,"AlreadySnapSoul":4,"DateTime":"2020.01.01-00.00.00","KeepMe":7},'
+        b'"PlainSword":{"WeaponLevel":1,"AlreadySnapSoul":2,"DateTime":"2018.01.01-00.00.00"}'
+        b'},'
+        b'"ShaChiWeaponInfo":{"PhantomHook":{"ShaChiWeaponLevel":true,"AlreadySnapSoul":true,"Stamp":"keep"}},'
+        b'"MainWeapons":["BronzeSword"],"ShaqiWeapons":["PhantomHook"],"CurrentMainWeaponID":"BronzeSword"}}'
+    )
+    session = soul_session(tmp_path, monkeypatch, raw)
+    session.compatibility = {
+        'executable': 'changed',
+        'available_categories': ['goods', 'weapon', 'phantom', 'accessory', 'medicine', 'appearance'],
+        'warnings': [],
+    }
+    assert session.category_issue('AutoSave0', 'weapon') == '该类别的数值结构已变化，仅可查看。'
+    assert session.category_issue('AutoSave0', 'phantom') == '该类别的数值结构已变化，仅可查看。'
+    assert not session.can_edit('AutoSave0', 'weapon') and not session.can_edit('AutoSave0', 'phantom')
+    for op in (
+        {'action': 'remove', 'id': 'BronzeSword', 'category': 'weapon'},
+        {'action': 'set', 'id': 'BronzeSword', 'category': 'weapon', 'quantity': 1, 'level': 0},
+        {'action': 'remove', 'id': 'PhantomHook', 'category': 'phantom'},
+    ):
+        with pytest.raises(EditorError, match='仅可查看'):
+            session.preview('AutoSave0', [op])
+    draft = InventoryDraft(session, 'AutoSave0')
+    assert draft.stage({'id': 'BronzeSword', 'category': 'weapon', 'action': 'clear_soul'})
+    assert draft.stage({'id': 'PhantomHook', 'category': 'phantom', 'action': 'clear_soul'})
+    ops = draft.validated_operations()
+    assert [(op['action'], op['id']) for op in ops] == [('clear_soul', 'PhantomHook'), ('clear_soul', 'BronzeSword')]
+    assert all('soul_level' not in op and 'quantity' not in op and op['action'] != 'remove' for op in ops)
+    advanced = next(entry['raw'] for entry in session.entries if entry['name'] == '__Advanced__')
+    session.apply('AutoSave0', ops)
+    assert next(entry['raw'] for entry in session.entries if entry['name'] == '__Advanced__') == advanced
+    expected = raw.replace(b'"AlreadySnapSoul":4', b'"AlreadySnapSoul":0', 1)
+    expected = expected.replace(b'"AlreadySnapSoul":true', b'"AlreadySnapSoul":false', 1)
+    assert session._entry('AutoSave0')['raw'] == expected
+    bronze = _record(session, 'MainWeaponInfos', 'BronzeSword')
+    assert bronze['AlreadySnapSoul'] == 0 and not isinstance(bronze['AlreadySnapSoul'], bool)
+    assert bronze['WeaponLevel'] is True and bronze['DateTime'] == '2020.01.01-00.00.00' and bronze['KeepMe'] == 7
+    plain = _record(session, 'MainWeaponInfos', 'PlainSword')
+    assert plain == {'WeaponLevel': 1, 'AlreadySnapSoul': 2, 'DateTime': '2018.01.01-00.00.00'}
+    hook = _record(session, 'ShaChiWeaponInfo', 'PhantomHook')
+    assert hook['AlreadySnapSoul'] is False
+    assert hook['ShaChiWeaponLevel'] is True and hook['Stamp'] == 'keep'
+    assert 'BronzeSword' in session._entry('AutoSave0')['json']['Inventory']['MainWeapons']
+    assert not session.can_edit('AutoSave0', 'weapon')
+    with pytest.raises(EditorError, match='仅可查看'):
+        session.preview('AutoSave0', [{'action': 'remove', 'id': 'BronzeSword', 'category': 'weapon'}])
 
 
 def test_remove_only_drops_the_weapon_record(tmp_path, monkeypatch):

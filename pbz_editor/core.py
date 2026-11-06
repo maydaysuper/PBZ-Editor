@@ -428,7 +428,7 @@ def _edit_inventory_small(raw: bytes, operations: list[dict]) -> tuple[bytes, li
     for operation in operations:
         op = dict(operation)
         action, item_id, category = op.get("action", "add"), op.get("id", ""), op.get("category", "")
-        if action not in ("add", "set", "remove"):
+        if action not in ("add", "set", "remove", "clear_soul"):
             raise EditorError("操作必须是 add、set 或 remove。")
         if not isinstance(item_id, str) or not item_id or len(item_id) > 256 or any(ord(c) < 32 for c in item_id):
             raise EditorError("物品 ID 无效。")
@@ -437,6 +437,21 @@ def _edit_inventory_small(raw: bytes, operations: list[dict]) -> tuple[bytes, li
         field = CATEGORY_FIELDS[category]
         path = ["Inventory", field, item_id]
         records = editor.value["Inventory"].get(field)
+        if action == "clear_soul":
+            if category not in ("weapon", "phantom"):
+                raise EditorError("只有主武器和影之武装可以清除铸魂。")
+            if not isinstance(records, dict) or not isinstance(records.get(item_id), dict):
+                raise EditorError("背包中没有该物品，不能清除铸魂。")
+            before = copy.deepcopy(records[item_id])
+            # Assign the unforged value. setdefault would keep a forged soul.
+            # Weapons store an int; phantom weapons store a bool.
+            cleared = _int(0, "炼魂等级") if category == "weapon" else False
+            editor.set(path + ["AlreadySnapSoul"], cleared)
+            after = copy.deepcopy(before)
+            after["AlreadySnapSoul"] = cleared
+            changes.append({"action": action, "id": item_id, "category": category,
+                            "before": before, "after": after, "name": op.get("name", item_id)})
+            continue
         if records is None:
             if action != "remove":
                 editor.set(["Inventory", field], {})
@@ -869,6 +884,12 @@ class SaveSession:
             category = operation.get('category')
             if category not in (*CATEGORY_FIELDS, 'appearance'):
                 raise EditorError('该物品类别尚未支持。')
+            # clear_soul writes only AlreadySnapSoul. It does not relax can_edit,
+            # remove, or any other field write when the category is view-only.
+            if operation.get('action') == 'clear_soul' and category in ('weapon', 'phantom'):
+                if self.read_only:
+                    raise EditorError('此存档格式尚未验证写入，当前仅可查看。')
+                continue
             issue = self.category_issue(slot, category)
             if issue:
                 raise EditorError(issue)
