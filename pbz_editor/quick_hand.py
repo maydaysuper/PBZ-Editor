@@ -13,12 +13,12 @@ The ``xm`` tag prefix follows bell ``bell_xm_xiao_zhang_005`` the same way
 ``ljc`` follows ``bell_ljc_xiao_zhang_002`` and the observed ``ljc.`` tags.
 
 The menu actions do not finish the delivery and do not write Steam achievements.
-A delivered chapter is put back to the in-progress shape used by live objectives
-in the same save: ``EBranchType::BranchActivating``, with the deliver branch
-removed from ``CompletedBranches``. Collection stays finished, including
-``小张收集物`` and ``藏身处小张.收集完奇珍异宝``, so 小张 can offer the hand-in.
-The running game then grants the reward and, when the other regions are already
-done, unlocks 妙手拾遗 itself.
+Collection stays finished. The deliver branch is put back to the not-started
+shape stored on dormant branches in that save: ``EBranchType::None``, zero
+progress, and ``0001.01.01-00.00.00``. The game's own talk with 小张 is what
+should complete the delivery and unlock 妙手拾遗.
+
+shortcut: deliver-reopen mix not taken from a live hand-in save, upgrade when one exists.
 """
 from __future__ import annotations
 
@@ -28,9 +28,11 @@ from .core import EditorError, LosslessJSON
 
 QUEST_CLASS = "/Game/PBZstory/PBZQuest/Collect/MiaoShouKongKong.MiaoShouKongKong_C"
 COMPLETED = "EBranchType::BranchCompleted"
-ACTIVATING = "EBranchType::BranchActivating"
-SUCCEEDED = "EQuestCompletion::QC_Succeded"
+NONE = "EBranchType::None"
+# Unfinished quests in the public Cycle 10 slot, including MiaoShouKongKong, use this.
 STARTED = "EQuestCompletion::QC_Started"
+SUCCEEDED = "EQuestCompletion::QC_Succeded"
+NOT_STARTED_TIME = "0001.01.01-00.00.00"
 # Tag this editor added in v0.3.5. Remove it so the game can set it when the hand-in runs.
 ACHIEVEMENT_TAG = "achievment.妙手拾遗.完成"
 
@@ -55,7 +57,6 @@ CHAPTERS = {
 def _tags_for(prefix):
     return [f"{prefix}.小张收集物.{index}" for index in (1, 2, 3)] + [
         f"{prefix}.藏身处小张.收集完奇珍异宝",
-        f"{prefix}.藏身处小张.第一次对话之后",
     ]
 
 
@@ -94,25 +95,23 @@ def _already_delivered(branch, completed_ids):
     return branch.get("BranchID") in completed_ids
 
 
-def _turn_in_open(branch, completed_ids):
-    """Active objective, not listed as finished, and no task marked done."""
+def _deliver_not_started(branch, completed_ids, length):
+    """Observed dormant delivery: None, zero progress, unset timestamp, not completed."""
     if branch.get("BranchID") in completed_ids:
         return False
-    if branch.get("BranchType") != ACTIVATING:
+    if branch.get("BranchType") != NONE or branch.get("DirtyTime") != NOT_STARTED_TIME:
         return False
-    progress = branch.get("TasksProgress")
-    if progress is None:
-        return True
-    return isinstance(progress, list) and all(item == 0 for item in progress)
+    return branch.get("TasksProgress") == [0] * length
 
 
 def apply_quick_hand(slot_raw, chapter, *, dirty_time):
     """Prepare one region's hand-in. Do not write the achievement slot or rewards.
 
-    Collection is marked finished with the same branch shape and tags seen on a
-    completed region. The deliver branch is set to ``BranchActivating``, which
-    is how every current objective in the inspected save is stored. The game's
-    own conversation then completes the delivery.
+    Collection is marked finished with the branch shape and tags seen on a
+    completed region. The deliver branch is restored to the not-started object
+    seen on branches 3-1, 4-1, 5-1, and 6-1 before delivery in the public save.
+
+    shortcut: deliver-reopen mix not taken from a live hand-in save, upgrade when one exists.
     """
     spec = CHAPTERS.get(chapter)
     if spec is None:
@@ -146,14 +145,15 @@ def apply_quick_hand(slot_raw, chapter, *, dirty_time):
         editor.set([*base, "BranchType"], COMPLETED)
         editor.set([*base, "TasksProgress"], [0] * collect_length)
         editor.set([*base, "DirtyTime"], dirty_time)
-    reopened = False
-    if not _turn_in_open(deliver, delivered_ids):
+    # shortcut: deliver-reopen mix not taken from a live hand-in save, upgrade when one exists.
+    if not _deliver_not_started(deliver, delivered_ids, deliver_length):
         base = [*quest_path, "QuestBranches", positions[deliver_id]]
-        editor.set([*base, "BranchType"], ACTIVATING)
-        editor.set([*base, "DirtyTime"], dirty_time)
-        if isinstance(deliver_progress, list) and any(item != 0 for item in deliver_progress):
+        if deliver.get("BranchType") != NONE:
+            editor.set([*base, "BranchType"], NONE)
+        if deliver.get("TasksProgress") != [0] * deliver_length:
             editor.set([*base, "TasksProgress"], [0] * deliver_length)
-        reopened = True
+        if deliver.get("DirtyTime") != NOT_STARTED_TIME:
+            editor.set([*base, "DirtyTime"], NOT_STARTED_TIME)
     merged = [item for item in completed if item != deliver_id]
     if collect_id not in merged and _already_delivered(
             editor.value["Narrative"]["NarrativeSavedQuests"][quest_index]["QuestBranches"][positions[collect_id]], set()):
@@ -172,9 +172,9 @@ def apply_quick_hand(slot_raw, chapter, *, dirty_time):
         editor.set(["EventPipeline", "GlobalTags"], tag_list)
 
     raw = editor.bytes()
-    notes = ["收集状态保留。交付分支改回进行中，进游戏后和该区域藏身处的妙手小张对话，由游戏完成交付和成就。"]
-    if reopened:
-        notes.append("已重新打开交付。")
+    if raw == slot_raw:
+        return slot_raw, []
+    notes = ["收集保持完成。交付改回未开始，进游戏后和该区域的妙手小张对话，由游戏完成交付和成就。"]
     changes = [{
         "action": "complete_quick_hand",
         "chapter": chapter,

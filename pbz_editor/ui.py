@@ -1054,9 +1054,9 @@ class EditorWindow(QMainWindow):
             return
         self.refresh_all()
         if changed:
-            self.status.setText(tr('{0}已准备成可以对话交付，尚未写入存档。保存后完全退出再进游戏，到该区域藏身处和他对一次话。游戏会完成这一段；其他区域都交付过时，由游戏解锁妙手拾遗。', labels[chapter]))
+            self.status.setText(tr('{0}已改回未交付，尚未写入存档。保存后完全退出，分别和陆家村、戏梦山庄的妙手小张对话。这组标记是推断的。如果对话没有出现，停下来，不要再改别的标记。', labels[chapter]))
         else:
-            self.status.setText(tr('{0}已经可以对话交付，没有新的改动。进游戏后到藏身处和他对一次话。', labels[chapter]))
+            self.status.setText(tr('{0}已经是未交付、收集完成的状态，没有新的改动。进游戏后和他对话。', labels[chapter]))
 
     def clear_soul(self):
         key = self.bag_selected

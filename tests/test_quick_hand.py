@@ -6,7 +6,7 @@ import pytest
 
 from pbz_editor.core import EditorError, PBZSContainer, SaveSession, _now
 from pbz_editor.draft import InventoryDraft
-from pbz_editor.quick_hand import ACTIVATING, COMPLETED, QUEST_CLASS, SUCCEEDED, apply_quick_hand
+from pbz_editor.quick_hand import COMPLETED, NONE, NOT_STARTED_TIME, QUEST_CLASS, SUCCEEDED, apply_quick_hand
 
 
 def _branch(branch_id, length, branch_type="EBranchType::None", progress=None, dirty="0001.01.01-00.00.00"):
@@ -76,8 +76,9 @@ def test_village_prepares_turn_in_without_finishing_delivery_or_other_regions():
     quest = json.loads(updated)["Narrative"]["NarrativeSavedQuests"][1]
     branches = {branch["BranchID"]: branch for branch in quest["QuestBranches"]}
     assert branches["3"]["BranchType"] == COMPLETED
-    assert branches["3-1"]["BranchType"] == ACTIVATING
+    assert branches["3-1"]["BranchType"] == NONE
     assert branches["3-1"]["TasksProgress"] == [0, 0, 0, 0, 0]
+    assert branches["3-1"]["DirtyTime"] == NOT_STARTED_TIME
     assert branches["1"]["DirtyTime"] == "2026.10.31-19.39.59"
     assert branches["6"]["BranchType"] == "EBranchType::None"
     assert branches["4"]["BranchType"] == "EBranchType::None"
@@ -86,7 +87,7 @@ def test_village_prepares_turn_in_without_finishing_delivery_or_other_regions():
     tags = json.loads(updated)["EventPipeline"]["GlobalTags"]
     assert tags[:6] == TAGS
     assert "ljc.小张收集物.2" in tags and "ljc.藏身处小张.收集完奇珍异宝" in tags
-    assert "ljc.藏身处小张.第一次对话之后" in tags
+    assert "ljc.小张收集物.1" in tags and "keep.me" in tags
     assert "xm.小张收集物.1" not in tags
     assert "achievment.妙手拾遗.完成" not in tags
     assert "AC_Control" not in json.loads(updated)["Inventory"]["AccessoryInfos"]
@@ -112,13 +113,17 @@ def test_reopen_delivered_estate_and_leave_other_regions_and_achievement_slot():
     branches = {branch["BranchID"]: branch for branch in saved["QuestBranches"]}
     assert branches["6"]["BranchType"] == COMPLETED
     assert branches["6"]["DirtyTime"] == "2026.10.31-19.39.59"
-    assert branches["6-1"]["BranchType"] == ACTIVATING
+    assert branches["6-1"]["BranchType"] == NONE
+    assert branches["6-1"]["TasksProgress"] == [0, 0, 0, 0, 0]
+    assert branches["6-1"]["DirtyTime"] == NOT_STARTED_TIME
     assert "6-1" not in saved["CompletedBranches"]
     assert "6" in saved["CompletedBranches"]
     assert branches["4"]["BranchType"] == COMPLETED and branches["5"]["BranchType"] == COMPLETED
     assert branches["1"]["DirtyTime"] == "2026.10.31-19.39.59"
     assert saved["QuestCompletion"] == "EQuestCompletion::QC_Started"
     body = json.loads(updated)
+    assert "xm.小张收集物.1" in body["EventPipeline"]["GlobalTags"]
+    assert "fjzl.藏身处小张.收集完奇珍异宝" in body["EventPipeline"]["GlobalTags"]
     assert "achievment.妙手拾遗.完成" not in body["EventPipeline"]["GlobalTags"]
     assert body["Inventory"]["AccessoryInfos"]["AC_Electrified"]["CurrentLevel"] == 3
     assert body["Inventory"]["MainWeaponInfos"]["IronBlade"]["AlreadySnapSoul"] == 4
@@ -144,8 +149,9 @@ def test_reopen_keeps_a_dormant_branch_and_a_deliver_branch_without_progress():
     branches = {branch["BranchID"]: branch for branch in saved_quest["QuestBranches"]}
     assert branches["3"]["BranchType"] == COMPLETED
     assert branches["3"]["DirtyTime"] == "2026.10.31-19.39.59"
-    assert branches["3-1"]["BranchType"] == ACTIVATING
-    assert "TasksProgress" not in branches["3-1"]
+    assert branches["3-1"]["BranchType"] == NONE
+    assert branches["3-1"]["TasksProgress"] == [0, 0, 0, 0, 0]
+    assert branches["3-1"]["DirtyTime"] == NOT_STARTED_TIME
     assert branches["2"] == {"BranchID": "2", "BranchType": "EBranchType::None", "DirtyTime": "0001.01.01-00.00.00"}
     assert branches["4"]["BranchType"] == COMPLETED and branches["6"]["BranchType"] == COMPLETED
     assert "3-1" not in saved_quest["CompletedBranches"]
@@ -156,7 +162,8 @@ def test_estate_turn_in_does_not_complete_village():
     updated, _changes = apply_quick_hand(raw, "estate", dirty_time="2026.11.06-12.00.00")
     branches = {branch["BranchID"]: branch for branch in json.loads(updated)["Narrative"]["NarrativeSavedQuests"][1]["QuestBranches"]}
     assert branches["6"]["BranchType"] == COMPLETED
-    assert branches["6-1"]["BranchType"] == ACTIVATING
+    assert branches["6-1"]["BranchType"] == NONE
+    assert branches["6-1"]["DirtyTime"] == NOT_STARTED_TIME
     assert branches["3"]["BranchType"] == "EBranchType::None"
     assert branches["1"]["BranchType"] == "EBranchType::None"
     assert branches["4"]["BranchType"] == "EBranchType::None"
@@ -214,7 +221,9 @@ def test_save_preserves_other_slots_and_keeps_backup(tmp_path, monkeypatch):
     assert "AC_Control" not in quest["Inventory"]["AccessoryInfos"]
     assert quest["Inventory"]["MainWeaponInfos"]["IronBlade"]["AlreadySnapSoul"] == 4
     deliver = next(branch for branch in quest["Narrative"]["NarrativeSavedQuests"][1]["QuestBranches"] if branch["BranchID"] == "3-1")
-    assert deliver["BranchType"] == ACTIVATING
+    assert deliver["BranchType"] == NONE
+    assert deliver["TasksProgress"] == [0, 0, 0, 0, 0]
+    assert deliver["DirtyTime"] == NOT_STARTED_TIME
 
 
 def test_view_only_accessories_skip_the_reward_and_still_complete_the_chapter(tmp_path):
@@ -224,7 +233,9 @@ def test_view_only_accessories_skip_the_reward_and_still_complete_the_chapter(tm
         'executable': 'changed', 'available_categories': ['goods'],
         'unavailable_categories': {}, 'warnings': [], 'structural_categories': [],
     }
+    before = session.save_path.read_bytes()
     preview = session.preview('AutoSave0', [{'action': 'complete_quick_hand', 'chapter': 'village', 'dirty_time': '2026.11.06-12.00.00'}])
+    assert session.save_path.read_bytes() == before
     assert any(change['category'] == 'quest' for change in preview['changes'])
     assert all(change.get('category') != 'accessory' for change in preview['changes'])
     view = session.project('AutoSave0', [{'action': 'complete_quick_hand', 'chapter': 'village', 'dirty_time': '2026.11.06-12.00.00'}])
@@ -233,7 +244,9 @@ def test_view_only_accessories_skip_the_reward_and_still_complete_the_chapter(tm
     assert 'ljc.藏身处小张.收集完奇珍异宝' in slot['EventPipeline']['GlobalTags']
     assert next(entry['json'] for entry in view.entries if entry['name'] == '__Achievements__')['UnlockedIds'] == ['ACH_001']
     deliver = next(branch for branch in slot['Narrative']['NarrativeSavedQuests'][1]['QuestBranches'] if branch['BranchID'] == '3-1')
-    assert deliver['BranchType'] == ACTIVATING
+    assert deliver['BranchType'] == NONE
+    assert deliver['TasksProgress'] == [0, 0, 0, 0, 0]
+    assert deliver['DirtyTime'] == NOT_STARTED_TIME
 
 
 def test_read_only_save_refuses_the_chapter(tmp_path):

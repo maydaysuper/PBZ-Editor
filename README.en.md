@@ -10,9 +10,9 @@ This started with one missed item: **Arrowward**.
 
 The plan was to get it back. That grew into a small editor with item search, map filters and icons from the game. Find something, add it to your inventory, adjust its quantity or upgrade level, then save. You can recover a missed piece of gear or try another weapon without leaving the window.
 
-**[Download the Windows app](https://github.com/maydaysuper/PBZ-Editor/releases/download/v0.3.6/PBZ-Editor-0.3.6-windows-x64.zip)** · [Release and checksums](https://github.com/maydaysuper/PBZ-Editor/releases/tag/v0.3.6) · [What's new](docs/releases/0.3.6.en.md)
+**[Download the Windows app](https://github.com/maydaysuper/PBZ-Editor/releases/download/v0.3.7/PBZ-Editor-0.3.7-windows-x64.zip)** · [Release and checksums](https://github.com/maydaysuper/PBZ-Editor/releases/tag/v0.3.7) · [What's new](docs/releases/0.3.7.en.md)
 
-The current release is **v0.3.6 preview** for Windows x64. Steam build **26266538** is the tested reference. After a game update, the editor checks the save and item data automatically; compatible features remain available rather than blocking an entire build number. A category whose numeric layout cannot be confirmed stays view-only for add, edit, and remove. **Clear soul** on a forged weapon writes only `AlreadySnapSoul`, and the screen says to exit the game completely before saving. **More** can prepare the Village of Lu and Mirage Estate Quick Hand hand-ins so Zhang can finish them in the game.
+The current release is **v0.3.7 preview** for Windows x64. Steam build **26266538** is the tested reference. After a game update, the editor checks the save and item data automatically; compatible features remain available rather than blocking an entire build number. A category whose numeric layout cannot be confirmed stays view-only for add, edit, and remove. **Clear soul** on a forged weapon writes only `AlreadySnapSoul`, and the screen says to exit the game completely before saving. **More** sets the Village of Lu and Mirage Estate deliveries back to not started so Zhang can finish them in the game.
 
 ## A quick look
 
@@ -32,7 +32,7 @@ These are captures of the actual app using a generated demo inventory. The file 
 
 ## Give it a try
 
-1. Download `PBZ-Editor-0.3.6-windows-x64.zip`, **extract the whole archive**, and exit the game.
+1. Download `PBZ-Editor-0.3.7-windows-x64.zip`, **extract the whole archive**, and exit the game.
 2. Run `PBZ-Editor.exe`. It usually finds the game and save for you. If it doesn't, choose them manually; if several accounts appear, pick your own progress.
 3. Search the item library by name, or browse by category and map. Select an item and click **Add to inventory**.
 4. Adjust its quantity or level on the right, then click **Save changes** in the top corner.
@@ -49,7 +49,7 @@ While you're choosing items and changing values, edits stay in the preview. **Th
 
 A few things to keep in mind:
 
-- **Adding a quest item doesn't complete its quest.** **More** can prepare the Village of Lu and Mirage Estate hand-ins. After you save and load the game, talk to Quick Hand Zhang at that hideout. The game finishes the delivery, the reward, and the achievement.
+- **Adding a quest item doesn't complete its quest.** **More** can set the Village of Lu and Mirage Estate deliveries back to not started while keeping collection finished. After you save and load, talk to Quick Hand Zhang in each place. This mix is inferred. If the conversation does not start, stop.
 - **Medicine uses still follow the game's rules.** Loading may refill them, so arbitrary counts aren't guaranteed to stay exactly as entered.
 - A map association isn't necessarily the only place to get an item. Full outfits unlock in the account wardrobe.
 
