@@ -315,6 +315,7 @@ class EditorWindow(QMainWindow):
         bag_heading.addWidget(self.bag_name, 1)
         self.clear_soul_button = button(tr('清除铸魂'), self.clear_soul)
         self.clear_soul_button.setObjectName('quiet')
+        self.clear_soul_button.setToolTip(tr('只清除这件武器的铸魂。请先完全退出游戏，点此按钮，再点右上角保存。不改等级和其他数据。类别仅可查看时，移出仍然不可用。'))
         bag_heading.addWidget(self.clear_soul_button)
         self.remove_button = button(tr('移出背包'), self.remove_selected)
         self.remove_button.setObjectName('quiet')
@@ -1036,7 +1037,8 @@ class EditorWindow(QMainWindow):
         item = self.owned[key]
         if _snap_soul(item) in (None, 0, False):
             return
-        self._stage({'action': 'clear_soul', 'id': item['id'], 'category': item['category']})
+        if self._stage({'action': 'clear_soul', 'id': item['id'], 'category': item['category']}):
+            self.status.setText(tr('铸魂已在预览中清除，尚未写入存档。请先完全退出游戏，再点右上角保存。'))
 
     def remove_selected(self):
         if self.bag_selected and self.bag_selected in self.owned:
@@ -1091,7 +1093,15 @@ class EditorWindow(QMainWindow):
         self.editor.setEnabled(bag_editable)
         self.advanced_action.setEnabled(ready and any(self.session.can_edit(self.slot_name(), c) for c in CATEGORIES if c != 'all'))
         if ready and self.bag_selected and not bag_editable:
-            self.bag_note.setText(tr(self.session.category_issue(self.slot_name(), self.bag_selected[0])))
+            issue = self.session.category_issue(self.slot_name(), self.bag_selected[0])
+            note = tr(issue) if issue else ''
+            if selected and self.bag_selected[0] in ('weapon', 'phantom') and not self.session.read_only:
+                original = self.draft.original.get(self.bag_selected)
+                if _snap_soul(selected) not in (None, 0, False):
+                    note += '\n' + tr('移出仍然不可用。当前物品已铸魂：请先完全退出游戏，点「清除铸魂」，再点右上角保存。保存只改铸魂状态。')
+                elif original and _snap_soul(original) not in (None, 0, False) and self.bag_selected in self.draft.changed_keys:
+                    note += '\n' + tr('铸魂已在预览中清除，尚未写入存档。请先完全退出游戏，再点右上角保存。')
+            self.bag_note.setText(note)
         self._show_compatibility()
         for widget in (self.sidebar, self.library_panel, self.backpack_panel, self.slot_combo,
                        self.open_button, self.more_button, self.backups_button):

@@ -10,9 +10,9 @@ This started with one missed item: **Arrowward**.
 
 The plan was to get it back. That grew into a small editor with item search, map filters and icons from the game. Find something, add it to your inventory, adjust its quantity or upgrade level, then save. You can recover a missed piece of gear or try another weapon without leaving the window.
 
-**[Download the Windows app](https://github.com/maydaysuper/PBZ-Editor/releases/download/v0.3.2/PBZ-Editor-0.3.2-windows-x64.zip)** · [Release and checksums](https://github.com/maydaysuper/PBZ-Editor/releases/tag/v0.3.2) · [What's new](docs/releases/0.3.2.en.md)
+**[Download the Windows app](https://github.com/maydaysuper/PBZ-Editor/releases/download/v0.3.3/PBZ-Editor-0.3.3-windows-x64.zip)** · [Release and checksums](https://github.com/maydaysuper/PBZ-Editor/releases/tag/v0.3.3) · [What's new](docs/releases/0.3.3.en.md)
 
-The current release is **v0.3.2 preview** for Windows x64. Steam build **26266538** is the tested reference. After a game update, the editor checks the save and item data automatically; compatible features remain available rather than blocking an entire build number. A category whose numeric layout cannot be confirmed stays view-only for add, edit, and remove. **Clear soul** on a forged weapon writes only `AlreadySnapSoul`.
+The current release is **v0.3.3 preview** for Windows x64. Steam build **26266538** is the tested reference. After a game update, the editor checks the save and item data automatically; compatible features remain available rather than blocking an entire build number. A category whose numeric layout cannot be confirmed stays view-only for add, edit, and remove. **Clear soul** on a forged weapon writes only `AlreadySnapSoul`, and the screen says to exit the game completely before saving.
 
 ## A quick look
 
@@ -32,7 +32,7 @@ These are captures of the actual app using a generated demo inventory. The file 
 
 ## Give it a try
 
-1. Download `PBZ-Editor-0.3.2-windows-x64.zip`, **extract the whole archive**, and exit the game.
+1. Download `PBZ-Editor-0.3.3-windows-x64.zip`, **extract the whole archive**, and exit the game.
 2. Run `PBZ-Editor.exe`. It usually finds the game and save for you. If it doesn't, choose them manually; if several accounts appear, pick your own progress.
 3. Search the item library by name, or browse by category and map. Select an item and click **Add to inventory**.
 4. Adjust its quantity or level on the right, then click **Save changes** in the top corner.
