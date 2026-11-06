@@ -879,6 +879,8 @@ class SaveSession:
     def _edit_plan(self, slot: str, operations: list[dict]):
         if not isinstance(operations,list) or len(operations)>5000 or any(not isinstance(op,dict) for op in operations):
             raise EditorError('操作清单无效或超过 5000 条。')
+        quest_ops = [op for op in operations if op.get('action') == 'complete_quick_hand']
+        operations = [op for op in operations if op.get('action') != 'complete_quick_hand']
         entry = self._entry(slot)
         for operation in operations:
             category = operation.get('category')
@@ -911,6 +913,20 @@ class SaveSession:
             if modified != advanced['raw']:
                 replacements['__Advanced__'] = modified
             changes.extend(global_changes)
+        if quest_ops:
+            if self.read_only:
+                raise EditorError('此存档格式尚未验证写入，当前仅可查看。')
+            from .quick_hand import apply_quick_hand
+            current = replacements.get(slot, entry['raw'])
+            for operation in quest_ops:
+                current, quest_changes = apply_quick_hand(
+                    current, operation.get('chapter'), dirty_time=operation.get('dirty_time') or _now())
+                for change in quest_changes:
+                    change.setdefault('slot', slot)
+                    change.setdefault('scope', 'slot')
+                changes.extend(quest_changes)
+            if current != entry['raw']:
+                replacements[slot] = current
         return replacements,changes
 
     def _candidate(self, slot: str, operations: list[dict], compression="preserve"):
@@ -928,10 +944,13 @@ class SaveSession:
 
     def preview(self, slot: str, operations: list[dict]) -> dict:
         replacements,changes = self._edit_plan(slot,operations)
+        note = "普通物品编辑所选进度槽，完整服装编辑账号全局衣柜；不会同步剧情、NPC 状态或成就。"
+        if any(change.get('action') == 'complete_quick_hand' for change in changes):
+            note = "只把所选妙手空空章节准备成交给该区域的小张。不写成就槽，也不改其他区域。进游戏对话后由游戏完成交付和成就。"
         return {"slot": slot, "changes": changes, "operation_count": len(changes), "changed": bool(replacements),
                 'affected_slots':list(replacements), 'has_global_changes':'__Advanced__' in replacements,
                 "original_sha256": self.source_sha256, "unrelated_slots_preserved": True,
-                "note": "普通物品编辑所选进度槽，完整服装编辑账号全局衣柜；不会同步剧情、NPC 状态或成就。"}
+                "note": note}
 
     def project(self, slot: str, operations: list[dict]):
         """Return a validated in-memory view using the same adapters as save.

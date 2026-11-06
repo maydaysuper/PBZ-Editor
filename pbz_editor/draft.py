@@ -1,5 +1,5 @@
 """Editable backpack snapshots with undo and a single explicit disk commit."""
-from .core import EditorError
+from .core import EditorError, _now
 
 
 def item_key(item):
@@ -60,6 +60,8 @@ class InventoryDraft:
         self.original = self._inventory(session)
         self.items = dict(self.original)
         self.history = []
+        self.quest_ops = []
+        self._quest_history = []
 
     def _inventory(self, session):
         return {item_key(i): i for i in session.inventory(self.slot)}
@@ -70,22 +72,34 @@ class InventoryDraft:
                 if signature(self.original.get(key)) != signature(self.items.get(key))}
 
     def stage(self, operation):
-        view = self.view.project(self.slot, [dict(operation)])
+        operation = dict(operation)
+        if operation.get('action') == 'complete_quick_hand':
+            operation.setdefault('dirty_time', _now())
+        view = self.view.project(self.slot, [operation])
         items = self._inventory(view)
-        if {k: signature(v) for k, v in items.items()} == {k: signature(v) for k, v in self.items.items()}:
+        quest_ops = list(self.quest_ops)
+        if operation.get('action') == 'complete_quick_hand' and _quick_snapshot(view, self.slot) != _quick_snapshot(self.view, self.slot):
+            quest_ops = [item for item in quest_ops if item.get('chapter') != operation.get('chapter')]
+            quest_ops.append(operation)
+        if ({k: signature(v) for k, v in items.items()} == {k: signature(v) for k, v in self.items.items()}
+                and quest_ops == self.quest_ops):
             return False
         self.history.append(self.view)
+        self._quest_history.append(list(self.quest_ops))
         self.history = self.history[-100:]
-        self.view, self.items = view, items
+        self._quest_history = self._quest_history[-100:]
+        self.view, self.items, self.quest_ops = view, items, quest_ops
         return True
 
     def undo(self):
         if self.history:
             self.view = self.history.pop()
+            self.quest_ops = self._quest_history.pop()
             self.items = self._inventory(self.view)
 
     def discard(self):
         self.view, self.items, self.history = self.session, dict(self.original), []
+        self.quest_ops, self._quest_history = [], []
 
     def operations(self):
         """Describe the final backpack, folding repeated edits into one target.
@@ -128,7 +142,22 @@ class InventoryDraft:
 
     def validated_operations(self):
         operations = self.operations()
-        projected = self._inventory(self.session.project(self.slot, operations))
-        if {k: signature(v) for k, v in projected.items()} != {k: signature(v) for k, v in self.items.items()}:
+        operations.extend(self.quest_ops)
+        projected = self.session.project(self.slot, operations)
+        if {k: signature(v) for k, v in self._inventory(projected).items()} != {k: signature(v) for k, v in self.items.items()}:
+            raise EditorError('背包预览与保存结果不一致，已取消写入。请撤销最近的修改后重试。')
+        if self.quest_ops and _quick_snapshot(projected, self.slot) != _quick_snapshot(self.view, self.slot):
             raise EditorError('背包预览与保存结果不一致，已取消写入。请撤销最近的修改后重试。')
         return operations
+
+
+def _quick_snapshot(session, slot):
+    """Quest, plot tags and achievement ids that a quick-hand edit may change."""
+    data = next(entry['json'] for entry in session.entries if entry['name'] == slot)
+    pipeline = data.get('EventPipeline') if isinstance(data, dict) else None
+    achievement = next((entry['json'] for entry in session.entries if entry['name'] == '__Achievements__'), None)
+    return (
+        data.get('Narrative') if isinstance(data, dict) else None,
+        pipeline.get('GlobalTags') if isinstance(pipeline, dict) else None,
+        achievement.get('UnlockedIds') if isinstance(achievement, dict) else None,
+    )
