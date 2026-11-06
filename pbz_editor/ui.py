@@ -106,7 +106,7 @@ class EditorWindow(QMainWindow):
         self.village_quick_hand = self.more_menu.addAction(tr('完成陆家村的妙手空空'), lambda: self.complete_quick_hand('village'))
         self.estate_quick_hand = self.more_menu.addAction(tr('完成戏梦山庄的妙手空空'), lambda: self.complete_quick_hand('estate'))
         for action in (self.village_quick_hand, self.estate_quick_hand):
-            action.setToolTip(tr('把这一段标成已交付，并在饰品可写时补上缺少的奖励。妙手拾遗要五个区域都完成才写入。请先退出游戏，再点保存。'))
+            action.setToolTip(tr('把这一段标成已交付，并在饰品可写时补上缺少的奖励。同时写入妙手拾遗。请先退出游戏，再点保存。'))
         self.more_menu.addSeparator()
         self.advanced_action = self.more_menu.addAction(tr('通过内部 ID 添加…'), self.advanced_add)
         self.internal_action = self.more_menu.addAction(tr('显示内部条目与编号'))
@@ -1054,7 +1054,7 @@ class EditorWindow(QMainWindow):
             return
         self.refresh_all()
         if changed:
-            self.status.setText(tr('{0}已在预览中标为完成，尚未写入存档。保存前会自动备份。妙手拾遗只在五个区域都完成时写入 ACH_039；Steam 弹窗不一定会在读档时出现。', labels[chapter]))
+            self.status.setText(tr('{0}已在预览中标为完成，尚未写入存档。保存前会自动备份。妙手拾遗 ACH_039 会写入成就槽。Steam 弹窗不保证会出现。', labels[chapter]))
         else:
             self.status.setText(tr('{0}已经是完成状态，没有新的改动。', labels[chapter]))
 

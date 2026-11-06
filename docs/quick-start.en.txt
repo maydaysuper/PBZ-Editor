@@ -1,4 +1,4 @@
-PBZ Editor 0.3.4 — Start here
+PBZ Editor 0.3.5 — Start here
 简体中文: START-HERE.txt
 
 1. Extract the complete archive. Keep the EXE and _internal folder together.

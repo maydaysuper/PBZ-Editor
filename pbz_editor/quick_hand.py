@@ -11,9 +11,12 @@ tags ``{prefix}.小张收集物.1/2/3`` and ``{prefix}.藏身处小张.收集完
 tasks, matching 庞镇's four treasures and bell ``bell_pz_xiao_zhang_003``.
 The ``xm`` tag prefix follows bell ``bell_xm_xiao_zhang_005`` the same way
 ``ljc`` follows ``bell_ljc_xiao_zhang_002`` and the observed ``ljc.`` tags.
-ACH_039 is Lost and Found / 妙手拾遗 and is written only when every stored
-branch of this quest is already BranchCompleted, including the five required
-pairs. Steam may still not show a popup from the save alone.
+
+Either chapter action also records 妙手拾遗. The achievement slot's unlock
+list is ``UnlockedIds``; quest achievements such as ACH_032 sit there and not
+in the counter maps. Progress slots also store ``achievment.<中文名>.完成``
+(the game's own spelling). ``PlatformPending`` was an empty array, so its
+item shape is unknown and is not written. Steam may still not show a popup.
 """
 from __future__ import annotations
 
@@ -25,6 +28,8 @@ QUEST_CLASS = "/Game/PBZstory/PBZQuest/Collect/MiaoShouKongKong.MiaoShouKongKong
 COMPLETED = "EBranchType::BranchCompleted"
 SUCCEEDED = "EQuestCompletion::QC_Succeded"
 ACHIEVEMENT_ID = "ACH_039"
+# Observed on unlocked story and side achievements inside the progress slot.
+ACHIEVEMENT_TAG = "achievment.妙手拾遗.完成"
 REQUIRED_BRANCHES = ("1", "1-1", "3", "3-1", "4", "4-1", "5", "5-1", "6", "6-1")
 
 CHAPTERS = {
@@ -60,7 +65,7 @@ def _quest_index(narrative):
     return matches[0], quests[matches[0]]
 
 
-def _branch_index(quest, branch_id, length):
+def _branch_index(quest, branch_id):
     branches = quest.get("QuestBranches")
     if not isinstance(branches, list):
         raise EditorError(f"妙手空空缺少分支 {branch_id}，未写入。")
@@ -68,11 +73,25 @@ def _branch_index(quest, branch_id, length):
                if isinstance(branch, dict) and branch.get("BranchID") == branch_id]
     if len(matches) != 1:
         raise EditorError(f"妙手空空缺少分支 {branch_id}，未写入。")
-    progress = branches[matches[0]].get("TasksProgress")
-    if (not isinstance(progress, list) or len(progress) != length
-            or any(type(item) is not int for item in progress)):
-        raise EditorError(f"妙手空空分支 {branch_id} 的任务进度长度不是 {length}，未写入。")
     return matches[0]
+
+
+def _progress_ok(branch, length):
+    progress = branch.get("TasksProgress")
+    return (isinstance(progress, list) and len(progress) == length
+            and all(type(item) is int for item in progress))
+
+
+def _already_delivered(branch, completed_ids):
+    """The game can show a chapter done without the exact progress array we write.
+
+    Completed saves sometimes omit TasksProgress, and a dormant extra branch can
+    stay unfinished. Neither should block ACH_039 or cause us to rewrite it.
+    """
+    branch_type = branch.get("BranchType")
+    if isinstance(branch_type, str) and branch_type.endswith("BranchCompleted"):
+        return True
+    return branch.get("BranchID") in completed_ids
 
 
 def _fully_succeeded(quest):
@@ -96,14 +115,15 @@ def _reward_missing(editor, reward_id):
 
 
 def _append_achievement(raw):
+    """Append ACH_039 to UnlockedIds. Leave counters and PlatformPending alone."""
     editor = LosslessJSON(raw)
     unlocked = editor.value.get("UnlockedIds")
     if not isinstance(unlocked, list) or any(not isinstance(item, str) for item in unlocked):
-        return raw, False
+        return raw, "unreadable"
     if ACHIEVEMENT_ID in unlocked:
-        return raw, False
+        return raw, "present"
     editor.set(["UnlockedIds"], [*unlocked, ACHIEVEMENT_ID])
-    return editor.bytes(), True
+    return editor.bytes(), "written"
 
 
 def apply_quick_hand(slot_raw, achievement_raw, chapter, *, dirty_time, grant_reward):
@@ -120,7 +140,7 @@ def apply_quick_hand(slot_raw, achievement_raw, chapter, *, dirty_time, grant_re
     editor = LosslessJSON(slot_raw)
     quest_index, quest = _quest_index(editor.value.get("Narrative"))
     targets = (spec["collect"], spec["deliver"])
-    positions = {branch_id: _branch_index(quest, branch_id, length) for branch_id, length in targets}
+    positions = {branch_id: _branch_index(quest, branch_id) for branch_id, _length in targets}
     pipeline = editor.value.get("EventPipeline")
     tags = pipeline.get("GlobalTags") if isinstance(pipeline, dict) else None
     if not isinstance(tags, list) or any(not isinstance(tag, str) for tag in tags):
@@ -131,11 +151,14 @@ def apply_quick_hand(slot_raw, achievement_raw, chapter, *, dirty_time, grant_re
 
     quest_path = ["Narrative", "NarrativeSavedQuests", quest_index]
     changed_branches = []
+    delivered_ids = set(completed)
     for branch_id, length in targets:
         position = positions[branch_id]
         branch = quest["QuestBranches"][position]
-        if branch.get("BranchType") == COMPLETED:
+        if _already_delivered(branch, delivered_ids):
             continue
+        if not _progress_ok(branch, length):
+            raise EditorError(f"妙手空空分支 {branch_id} 的任务进度长度不是 {length}，未写入。")
         base = [*quest_path, "QuestBranches", position]
         editor.set([*base, "BranchType"], COMPLETED)
         editor.set([*base, "TasksProgress"], [0] * length)
@@ -151,7 +174,7 @@ def apply_quick_hand(slot_raw, achievement_raw, chapter, *, dirty_time, grant_re
     succeeded = _fully_succeeded(updated)
     if succeeded and updated.get("QuestCompletion") != SUCCEEDED:
         editor.set([*quest_path, "QuestCompletion"], SUCCEEDED)
-    needed = _tags_for(spec["prefix"])
+    needed = [*_tags_for(spec["prefix"]), ACHIEVEMENT_TAG]
     tag_list = list(tags)
     for tag in needed:
         if tag not in tag_list:
@@ -169,24 +192,28 @@ def apply_quick_hand(slot_raw, achievement_raw, chapter, *, dirty_time, grant_re
     notes = []
     if changed_branches:
         notes.append("已把收集和交付分支标成完成。")
-    if tag_list != tags:
+    if any(tag not in tags for tag in _tags_for(spec["prefix"])):
         notes.append("已补上该区域的收集完成标记。")
+    if ACHIEVEMENT_TAG not in tags:
+        notes.append("已补上妙手拾遗的完成标记。")
     if reward_changes:
         notes.append(f"背包里没有 {spec['reward']}，已按饰品记录补上。")
     elif grant_reward:
         notes.append(f"背包里已有 {spec['reward']}，没有改它的等级。")
     else:
         notes.append("饰品目前仅可查看，所以没有写入奖励。")
-    achievement_written = False
-    if succeeded and isinstance(achievement_raw, (bytes, bytearray)):
-        achievement_raw, achievement_written = _append_achievement(achievement_raw)
-        notes.append("五个区域的分支都已完成，已写入存档成就 ACH_039。" if achievement_written
-                     else "五个区域的分支都已完成。成就列表里已经有 ACH_039，或成就槽没有可识别的 UnlockedIds。")
-        notes.append("Steam 弹窗要游戏自己向 Steam 上报，读档不一定弹出。")
-    elif not succeeded:
-        notes.append("妙手拾遗要五个区域都完成才写入。这一段单独完成不会改成就槽。")
+    achievement_state = "missing-slot"
+    if isinstance(achievement_raw, (bytes, bytearray)):
+        achievement_raw, achievement_state = _append_achievement(achievement_raw)
+    if achievement_state == "written":
+        notes.append("已把妙手拾遗 ACH_039 写入成就槽，并补上完成标记。")
+    elif achievement_state == "present":
+        notes.append("成就槽里已经有 ACH_039。")
+    elif achievement_state == "unreadable":
+        notes.append("成就槽没有可识别的 UnlockedIds，未写入 ACH_039。")
     else:
         notes.append("存档没有成就槽，未写入 ACH_039。")
+    notes.append("Steam 弹窗不保证出现：待弹出列表没有见过具体条目，所以没有改它。")
     changes = [{
         "action": "complete_quick_hand",
         "chapter": chapter,
@@ -198,7 +225,7 @@ def apply_quick_hand(slot_raw, achievement_raw, chapter, *, dirty_time, grant_re
         "note": "".join(notes),
     }]
     changes.extend(reward_changes)
-    if achievement_written:
+    if achievement_state == "written":
         changes.append({
             "action": "complete_quick_hand",
             "chapter": chapter,
@@ -207,7 +234,7 @@ def apply_quick_hand(slot_raw, achievement_raw, chapter, *, dirty_time, grant_re
             "name": "妙手拾遗",
             "slot": "__Achievements__",
             "scope": "achievements",
-            "note": "只把 ACH_039 加进 UnlockedIds。Steam 弹窗不由这份存档单独保证。",
+            "note": "只把 ACH_039 加进 UnlockedIds，不改计数、已完成元素或待弹出列表。Steam 弹窗不由这份存档单独保证。",
         })
     return raw, achievement_raw, changes
 

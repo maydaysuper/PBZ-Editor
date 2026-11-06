@@ -952,7 +952,7 @@ class SaveSession:
         replacements,changes = self._edit_plan(slot,operations)
         note = "普通物品编辑所选进度槽，完整服装编辑账号全局衣柜；不会同步剧情、NPC 状态或成就。"
         if any(change.get('action') == 'complete_quick_hand' for change in changes):
-            note = "写入所选妙手空空章节的任务分支和剧情标记；饰品可写且背包没有奖励时补上奖励。五个区域都完成才写入成就 ACH_039。Steam 弹窗不由存档单独保证。"
+            note = "写入所选妙手空空章节的任务分支和剧情标记；饰品可写且背包没有奖励时补上奖励。同时把妙手拾遗 ACH_039 写入成就槽。Steam 弹窗不由存档单独保证。"
         return {"slot": slot, "changes": changes, "operation_count": len(changes), "changed": bool(replacements),
                 'affected_slots':list(replacements), 'has_global_changes':'__Advanced__' in replacements,
                 "original_sha256": self.source_sha256, "unrelated_slots_preserved": True,

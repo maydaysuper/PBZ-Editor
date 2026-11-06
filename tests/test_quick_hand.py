@@ -86,18 +86,21 @@ def test_village_chapter_completes_only_its_branches_tags_and_reward():
     assert quest["CompletedBranches"] == ["1", "1-1", "3", "3-1"]
     tags = json.loads(updated)["EventPipeline"]["GlobalTags"]
     assert tags[:6] == TAGS
-    assert tags[6:] == ["ljc.小张收集物.2", "ljc.小张收集物.3", "ljc.藏身处小张.收集完奇珍异宝"]
-    assert "ljc.藏身处小张.收集完奇珍异宝" in tags
+    assert tags[6:] == ["ljc.小张收集物.2", "ljc.小张收集物.3", "ljc.藏身处小张.收集完奇珍异宝", "achievment.妙手拾遗.完成"]
     assert "xm.小张收集物.1" not in tags
     accessory = json.loads(updated)["Inventory"]["AccessoryInfos"]["AC_Control"]
     assert accessory["CurrentLevel"] == 0
     assert json.loads(updated)["Inventory"]["MainWeaponInfos"]["IronBlade"]["AlreadySnapSoul"] == 4
+    assert branches["4"]["BranchType"] == "EBranchType::None"
     assert b"1.2300e-9" in updated
-    assert achievement == b'{"UnlockedIds":["ACH_001"],"Counters":{"ACH_028":1}}'
-    assert any(change["chapter"] == "village" for change in changes)
+    saved = json.loads(achievement)
+    assert saved["UnlockedIds"] == ["ACH_001", ACHIEVEMENT_ID]
+    assert saved["Counters"] == {"ACH_028": 1}
+    assert "PlatformPending" not in saved
+    assert any(change["id"] == ACHIEVEMENT_ID for change in changes)
 
 
-def test_estate_chapter_writes_achievement_only_when_every_region_is_complete():
+def test_estate_chapter_writes_achievement_without_rewriting_other_regions():
     active = {branch_id: (COMPLETED, [0] * length) for branch_id, length in [
         ("1", 3), ("1-1", 5), ("3", 3), ("3-1", 5), ("4", 4), ("4-1", 5), ("5", 3), ("5-1", 5),
     ]}
@@ -117,6 +120,59 @@ def test_estate_chapter_writes_achievement_only_when_every_region_is_complete():
     again, achievement_again, _changes = apply_quick_hand(updated, achievement, "estate", dirty_time="2026.11.06-13.00.00", grant_reward=True)
     assert again == updated
     assert achievement_again == achievement
+
+
+def test_rerun_on_delivered_chapter_grants_missing_achievement_and_leaves_other_branches():
+    active = {branch_id: (COMPLETED, [0] * length) for branch_id, length in [
+        ("1", 3), ("1-1", 5), ("3", 3), ("3-1", 5), ("4", 4), ("4-1", 5), ("5", 3), ("5-1", 5),
+        ("6", 3), ("6-1", 5),
+    ]}
+    quest = _quest(active)
+    for branch in quest["QuestBranches"]:
+        if branch["BranchID"] in ("3", "3-1"):
+            del branch["TasksProgress"]
+    quest["QuestBranches"].append({
+        "BranchID": "2", "BranchType": "EBranchType::None", "DirtyTime": "0001.01.01-00.00.00",
+    })
+    tags = TAGS + [
+        "ljc.小张收集物.2", "ljc.小张收集物.3", "ljc.藏身处小张.收集完奇珍异宝",
+        "xm.小张收集物.1", "xm.小张收集物.2", "xm.小张收集物.3", "xm.藏身处小张.收集完奇珍异宝",
+    ]
+    raw = _slot(quest, tags, {"AC_Control": {"CurrentLevel": 4}})
+    achievements = b'{"UnlockedIds":["ACH_001"],"Counters":{"ACH_028":1},"CompletedElements":{"ACH_028":["a"]},"PlatformPending":[]}'
+    updated, achievement, _changes = apply_quick_hand(
+        raw, achievements, "village", dirty_time="2099.01.01-00.00.00", grant_reward=True)
+    saved_quest = json.loads(updated)["Narrative"]["NarrativeSavedQuests"][1]
+    branches = {branch["BranchID"]: branch for branch in saved_quest["QuestBranches"]}
+    assert "TasksProgress" not in branches["3"]
+    assert branches["3"]["DirtyTime"] == "2026.10.31-19.39.59"
+    assert branches["2"] == {"BranchID": "2", "BranchType": "EBranchType::None", "DirtyTime": "0001.01.01-00.00.00"}
+    assert branches["4"]["BranchType"] == COMPLETED
+    assert branches["5"]["BranchType"] == COMPLETED
+    assert saved_quest["QuestCompletion"] == "EQuestCompletion::QC_Started"
+    saved = json.loads(achievement)
+    assert saved["UnlockedIds"] == ["ACH_001", ACHIEVEMENT_ID]
+    assert saved["Counters"] == {"ACH_028": 1}
+    assert saved["CompletedElements"] == {"ACH_028": ["a"]}
+    assert saved["PlatformPending"] == []
+    assert json.loads(updated)["Inventory"]["AccessoryInfos"]["AC_Control"]["CurrentLevel"] == 4
+    assert json.loads(updated)["Inventory"]["MainWeaponInfos"]["IronBlade"]["AlreadySnapSoul"] == 4
+    assert "achievment.妙手拾遗.完成" in json.loads(updated)["EventPipeline"]["GlobalTags"]
+
+
+def test_estate_alone_writes_achievement_and_does_not_complete_village():
+    raw = _slot(_quest(), TAGS)
+    updated, achievement, _changes = apply_quick_hand(
+        raw, b'{"UnlockedIds":["ACH_014"],"PlatformPending":[]}', "estate",
+        dirty_time="2026.11.06-12.00.00", grant_reward=True)
+    branches = {branch["BranchID"]: branch for branch in json.loads(updated)["Narrative"]["NarrativeSavedQuests"][1]["QuestBranches"]}
+    assert branches["6"]["BranchType"] == COMPLETED
+    assert branches["3"]["BranchType"] == "EBranchType::None"
+    assert branches["1"]["BranchType"] == "EBranchType::None"
+    assert branches["4"]["BranchType"] == "EBranchType::None"
+    saved = json.loads(achievement)
+    assert saved["UnlockedIds"] == ["ACH_014", ACHIEVEMENT_ID]
+    assert saved["PlatformPending"] == []
 
 
 def test_refuses_a_branch_whose_task_list_does_not_match_and_writes_nothing():
@@ -166,10 +222,12 @@ def test_save_preserves_other_slots_and_keeps_backup(tmp_path, monkeypatch):
     blocks = {entry["name"]: entry["block"] for entry in reloaded}
     assert blocks["__Advanced__"] == before["__Advanced__"]
     assert blocks["ManualSave1"] == before["ManualSave1"]
-    assert blocks["__Achievements__"] == before["__Achievements__"]
+    assert blocks["__Achievements__"] != before["__Achievements__"]
     quest = next(entry["json"] for entry in reloaded if entry["name"] == "AutoSave0")
     assert "AC_Control" in quest["Inventory"]["AccessoryInfos"]
     assert quest["Inventory"]["MainWeaponInfos"]["IronBlade"]["AlreadySnapSoul"] == 4
+    unlocked = next(entry["json"] for entry in reloaded if entry["name"] == "__Achievements__")
+    assert unlocked["UnlockedIds"] == ["ACH_001", ACHIEVEMENT_ID]
 
 
 def test_view_only_accessories_skip_the_reward_and_still_complete_the_chapter(tmp_path):
@@ -186,6 +244,9 @@ def test_view_only_accessories_skip_the_reward_and_still_complete_the_chapter(tm
     slot = next(entry['json'] for entry in view.entries if entry['name'] == 'AutoSave0')
     assert 'AC_Control' not in slot['Inventory']['AccessoryInfos']
     assert 'ljc.藏身处小张.收集完奇珍异宝' in slot['EventPipeline']['GlobalTags']
+    assert 'achievment.妙手拾遗.完成' in slot['EventPipeline']['GlobalTags']
+    assert next(entry['json'] for entry in view.entries if entry['name'] == '__Achievements__')['UnlockedIds'] == ['ACH_001', ACHIEVEMENT_ID]
+    assert slot['Narrative']['NarrativeSavedQuests'][1]['QuestBranches'][2]['BranchType'] == 'EBranchType::None'
 
 
 def test_read_only_save_refuses_the_chapter(tmp_path):
